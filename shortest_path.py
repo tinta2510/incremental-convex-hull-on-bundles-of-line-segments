@@ -1,11 +1,8 @@
-import math
 import logging
-import matplotlib.pyplot as plt
-from collections import deque
 from utils import calculate_distance, is_larger_angle, \
                     is_equal_angle, is_smaller_angle, \
                     is_left, is_left_on, calculate_angle, \
-                    Point, LineSegment
+                    Point
     
 class SequenceOfBundles:
     """
@@ -197,80 +194,3 @@ class SimplePolygon:
                     curr_polyline = dual_polyline
                     direction = not direction
                     break
-        
-class SequenceVisualizer:
-    @staticmethod
-    def plot_sequence(sequence: SequenceOfBundles) -> None:
-        """
-        Visualize the sequence of bundles of line segments.
-        
-        Args:
-            sequence (SequenceOfBundles): The sequence of bundles to visualize.
-        """
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # Plot the singleton (sequence of vertices)
-        vertices = sequence.singleton
-        x_vertices = [v.x for v in vertices]
-        y_vertices = [v.y for v in vertices]
-        ax.plot(x_vertices, y_vertices, 'ro-', label="Singleton (Vertices)")
-        
-        # Plot the line segments in each bundle
-        for i, vertex in enumerate(vertices):
-            # Skip the first and last vertices (no line segments allowed)
-            if i == 0 or i == len(vertices) - 1:
-                continue
-            
-            # Draw the line segments for this vertex
-            outer_endpoints = sequence.outer_endpoints[i]
-            for endpoint in outer_endpoints:
-                ax.plot(
-                    [vertex.x, endpoint.x],
-                    [vertex.y, endpoint.y],
-                    'b--',  # Dashed blue line
-                    label="Line Segment" if i == 1 and endpoint == outer_endpoints[0] else None  # Label once
-                )
-                ax.scatter(endpoint.x, endpoint.y, color="green", label="Outer Endpoint" if i == 1 and endpoint == outer_endpoints[0] else None)
-
-        # Add labels and a legend
-        ax.set_title("Sequence of Bundles of Line Segments")
-        ax.set_xlabel("X-coordinate")
-        ax.set_ylabel("Y-coordinate")
-        ax.legend()
-        ax.grid(True)
-        
-        # Show the plot
-        plt.show()
-        
-# Example Usage
-if __name__ == "__main__":
-    # Create example vertices
-    vertices = [
-        Point(0, 0),
-        Point(2, 2),
-        Point(4, 1),
-        Point(6, 3),
-        Point(8, 0),
-    ]
-    
-    # Initialize sequence
-    radius = 3
-    sequence = SequenceOfBundles(vertices, radius)
-    
-    # Add line segments to the second vertex
-    sequence.add_line_segment(vertices[1], Point(2, 0))
-    sequence.add_line_segment(vertices[1], Point(3, 1))
-    
-    # Add line segments to the third vertex
-    sequence.add_line_segment(vertices[2], Point(5, 3))
-    sequence.add_line_segment(vertices[2], Point(3, 4))
-    
-    # Add line segments to the fourth vertex
-    sequence.add_line_segment(vertices[3], Point(7, 1))
-    sequence.add_line_segment(vertices[3], Point(5, 0.5))
-    
-    # Visualize the sequence
-    SequenceVisualizer.plot_sequence(sequence)   
-        
-    
-    

@@ -1,5 +1,5 @@
 from utils import Point
-from obj import SimplePolygon, SequenceOfBundles
+from shortest_path import SimplePolygon, SequenceOfBundles
 import matplotlib.pyplot as plt
 
 def visualize_sequence_of_bundles(sequence: SequenceOfBundles):
