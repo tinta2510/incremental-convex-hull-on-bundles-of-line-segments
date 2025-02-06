@@ -13,7 +13,23 @@ class Point:
         if isinstance(other, Point):
             return self.x == other.x and self.y == other.y
         return False
+    
+    @property
+    def magnitude(self) -> float:
+        return math.sqrt(self.x ** 2 + self.y ** 2)
 
+    def __add__(self, other: 'Point') -> 'Point':
+        return Point(self.x + other.x, self.y + other.y)
+    
+    def __sub__(self, other: 'Point') -> 'Point':
+        return Point(self.x - other.x, self.y - other.y)
+    
+    def __mul__(self, scalar: float) -> 'Point':
+        return Point(self.x * scalar, self.y * scalar)
+    
+    def __truediv__(self, scalar: float) -> 'Point':
+        return Point(self.x / scalar, self.y / scalar)
+    
     def __hash__(self):
         # Combine the hash of x and y to create a unique hash for each Point
         return hash((self.x, self.y))

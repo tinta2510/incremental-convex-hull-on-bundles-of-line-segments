@@ -1,8 +1,29 @@
 import logging
+from itertools import combinations
 from utils import calculate_distance, is_larger_angle, \
                     is_equal_angle, is_smaller_angle, \
                     is_left, is_left_on, calculate_angle, \
                     Point
+
+LOG_FILE = "./convex_hull.log"  
+with open(LOG_FILE, 'w') as file:  # Open in write mode to clear content
+    pass   
+                   
+def write_points_to_file(points: list[Point], filename: str) -> None:
+    """
+    Write a list of points to a file. (For logging purpose)
+
+    :param points: List of Point objects.
+    :param filename: Name of the file to write the points to.
+    """
+    try:
+        with open(filename, 'a') as file:
+            for point in points:
+                # Format the point for writing to the file
+                file.write(f"{point.x} {point.y}\n")
+            file.write("\n")
+    except Exception as e:
+        print(f"An error occurred while writing points to the file: {e}")
     
 class SequenceOfBundles:
     """
@@ -26,8 +47,10 @@ class SequenceOfBundles:
             logging.error(f"Cannot add line segments [{vertex}, {outer_endpoint}] into the first and last bundles.")
             return
         if calculate_distance(vertex, outer_endpoint) > self.radius:
-            logging.error(f"The length of the added segment [{vertex}, {outer_endpoint}] is greater than the max radius.")
-            return
+            diff = outer_endpoint - vertex               
+            direction = diff / diff.magnitude
+            outer_endpoint = vertex + direction * self.radius
+            logging.error(f"The length of the added segment [{vertex}, {outer_endpoint}] is greater than the max radius. Preprocessed!")
         
         index = self.singleton.index(vertex)
         prev_vertex = self.singleton[index-1]
@@ -51,7 +74,67 @@ class SequenceOfBundles:
                     return
                 elif is_equal_angle(angle1, angle2):
                     return
-            self.outer_endpoints[index].append(outer_endpoint)      
+            self.outer_endpoints[index].append(outer_endpoint)     
+    
+    def preprocess(self):
+        min_radius = 0.5 * min(calculate_distance(a, b) for a, b in combinations(self.singleton, 2))
+        for i, vertex in enumerate(self.singleton):
+            for j, outer_endpoint in enumerate(self.outer_endpoints[i]):
+                if calculate_distance(vertex, outer_endpoint) > min_radius:
+                    diff = outer_endpoint - vertex               
+                    direction = diff / diff.magnitude
+                    self.outer_endpoints[i][j] = vertex + direction * min_radius
+
+    @staticmethod
+    def load_sequence_from_file(filename: str, preprocess: bool = True):
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+        
+        radius = None
+        vertices = []
+        line_segments = []
+        section = None  # Keep track of the current section
+        
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue  # Skip empty lines and comments
+            
+            # Detect section headers
+            if line.startswith("Radius:"):
+                section = "Radius"
+                radius = float(line.split(":")[1].strip())
+            elif line.startswith("Vertices:"):
+                section = "Vertices"
+            elif line.startswith("LineSegments:"):
+                section = "LineSegments"
+            else:
+                # Parse data based on the current section
+                if section == "Vertices":
+                    x, y = map(float, line.split())
+                    vertices.append(Point(x, y))
+                elif section == "LineSegments":
+                    data = list(map(float, line.split()))
+                    vertex_index = int(data[0])
+                    outer_endpoint = Point(data[1], data[2])
+                    line_segments.append((vertex_index, outer_endpoint))
+        
+        # Validate required data
+        if radius is None or not vertices:
+            raise ValueError("Input file is missing required data: Radius or Vertices.")
+        
+        # Initialize the sequence
+        sequence = SequenceOfBundles(vertices, radius)
+        
+        # Add line segments to the sequence
+        for vertex_index, outer_endpoint in line_segments:
+            if 0 <= vertex_index < len(vertices):
+                sequence.add_line_segment(vertices[vertex_index], outer_endpoint)
+            else:
+                logging.error(f"Invalid vertex index {vertex_index} for line segment {outer_endpoint}")
+        
+        if preprocess: sequence.preprocess() # Preprocess the sequence
+        return sequence
             
 class SimplePolygon:
     def __init__(self, polyline_P: list[Point], polyline_Q: list[Point]):
@@ -67,13 +150,13 @@ class SimplePolygon:
     def from_sequence_of_bundles(sequence: SequenceOfBundles):
         polyline_P = [sequence.singleton[0]]
         polyline_Q = [sequence.singleton[0]]
-        for i, pt in list(enumerate(sequence.singleton))[1:-1]:
+        for i in range(1, len(sequence.singleton)-1):
             # WARNING: Not degenerate bundles
             if is_left(sequence.singleton[i-1], 
                        sequence.singleton[i],
                        sequence.outer_endpoints[i][0]
             ): 
-                polyline_P.append(sequence.singleton[i])
+                polyline_Q.append(sequence.singleton[i])
                 for outer_pt in sequence.outer_endpoints[i]:
                     polyline_P.append(outer_pt)
             else:
@@ -120,11 +203,10 @@ class SimplePolygon:
         else: 
             return tangent_polyline[start_tp_idx:end_tp_idx+1]
         
-    def find_shortest_path(self):
+    def find_shortest_path(self, direction: bool =  True):
         shortest_path = []
         start_index = 0
-        direction = 1 # Work on
-        curr_polyline = self.polyline_P
+        curr_polyline = self.polyline_P if direction else self.polyline_Q
         while True:
             dual_polyline = self.polyline_Q  \
                              if curr_polyline == self.polyline_P \
@@ -175,22 +257,25 @@ class SimplePolygon:
                     tangent_polyline.insert(0, added_pt)
                     if added_pt == self.polyline_P[-1]:
                         print("Reach goal")
+                        print(tangent_polyline)
                         start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
                         shortest_path += tangent_polyline[start_tp_idx:]
+                        write_points_to_file(tangent_polyline, LOG_FILE)
                         return shortest_path
                 else:
-                    # Find link
-                    Xstar = tangent_polyline[0:right_tp_idx+1] + tangent_polyline[left_tp_idx:-1]
+                    # Find lin
+                    Xstar = tangent_polyline[left_tp_idx:-1] + tangent_polyline[0:right_tp_idx+1]
                     Ustar, Vstar = self.find_link(Xstar, Ystar, direction)
                     if not Ustar:
                         raise Exception("Cannot find link [u*, v*]")
                     
                     start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
                     Ustar_idx = tangent_polyline.index(Ustar)
-                    print(self.get_tangent_line(tangent_polyline, start_tp_idx, Ustar_idx))
                     shortest_path += self.get_tangent_line(tangent_polyline, start_tp_idx, Ustar_idx)
-
+                    
                     start_index = dual_polyline.index(Vstar)
                     curr_polyline = dual_polyline
                     direction = not direction
                     break
+            print(tangent_polyline)
+            write_points_to_file(tangent_polyline, LOG_FILE)
