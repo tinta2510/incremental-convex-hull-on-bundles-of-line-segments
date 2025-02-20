@@ -263,8 +263,11 @@ class SimplePolygon:
                         write_points_to_file(tangent_polyline, LOG_FILE)
                         return shortest_path
                 else:
-                    # Find lin
-                    Xstar = tangent_polyline[left_tp_idx:-1] + tangent_polyline[0:right_tp_idx+1]
+                    # Find link
+                    if len(tangent_polyline) == 2: # Handle the case of two points
+                        Xstar = tangent_polyline 
+                    else:
+                        Xstar = tangent_polyline[left_tp_idx:-1] + tangent_polyline[0:right_tp_idx+1] 
                     Ustar, Vstar = self.find_link(Xstar, Ystar, direction)
                     if not Ustar:
                         raise Exception("Cannot find link [u*, v*]")

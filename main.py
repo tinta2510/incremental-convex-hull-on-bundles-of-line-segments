@@ -70,18 +70,19 @@ def draw_convex_hull(plt, polygons):
 if __name__=="__main__":
     sequence = SequenceOfBundles.load_sequence_from_file("input/input_1.txt", preprocess=False)
     polygon = SimplePolygon.from_sequence_of_bundles(sequence)
-    shortest_path = polygon.find_shortest_path(False)
+    shortest_path = polygon.find_shortest_path(direction=False)
     
     visalize_sequence(plt, sequence)
-    # visualize_shortest_path(plt, shortest_path)
-    visualize_simple_polygon(plt, polygon)
+    visualize_shortest_path(plt, shortest_path)
+    # visualize_simple_polygon(plt, polygon)
     
-    # # Visualize the convex hull
-    # filename = "convex_hull.log"
-    # ## Read points and polygons from the file
-    # polygons = read_convex_hull_from_file(filename)
-    # ## Draw the polygons
-    # draw_convex_hull(plt, polygons)
+    # Visualize the convex hull - START ---
+    filename = "convex_hull.log"
+    ## Read points and polygons from the file
+    polygons = read_convex_hull_from_file(filename)
+    ## Draw the polygons
+    draw_convex_hull(plt, polygons)
+    # Visualize the convex hull - END ---
     
     plt.xticks([])  # Remove x-axis numbers
     plt.yticks([])  # Remove y-axis numbers
