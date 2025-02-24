@@ -113,3 +113,32 @@ def calculate_angle(A: Point, B: Point, C: Point) -> float:
     
     return angle_degrees
             
+def decompose_polyline_to_convex_rope(polyline: list[Point]) -> list[int]:
+    """
+    Mark the turning directions of a polyline.
+
+    Args:
+        polyline (list[Point]): The list of points in the polyline.
+
+    Returns:
+        list[bool]: The list of labels to distinguish convex ropes
+    """
+    directions = [0] * len(polyline)
+    for i in range(1, len(directions) - 1):
+        if is_left(polyline[i - 1], polyline[i], polyline[i + 1]):
+            directions[i] = 1
+        else:
+            directions[i] = -1
+    for i in range(1, len(directions) - 1):
+        A, B, C = directions[i - 1], directions[i], directions[i + 1]
+        if A == B and B != C:
+            directions[i] = 0
+        elif A != B and B != C:
+            directions[i] = 0
+    num = 1
+    for i in range(1, len(directions) - 1):
+        if directions[i] != 0:
+            directions[i] = num * directions[i]
+        else:
+            num += 1
+    return directions

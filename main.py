@@ -1,4 +1,4 @@
-from shortest_path import SimplePolygon, SequenceOfBundles, Point
+from shortest_path import SimplePolygon, SequenceOfBundles, Point, SimplePolygonFromSequenceOfBundle
 import matplotlib.pyplot as plt
 
 def visalize_sequence(plt, sequence: SequenceOfBundles):
@@ -69,7 +69,7 @@ def draw_convex_hull(plt, polygons):
     
 if __name__=="__main__":
     sequence = SequenceOfBundles.load_sequence_from_file("input/input_1.txt", preprocess=False)
-    polygon = SimplePolygon.from_sequence_of_bundles(sequence)
+    polygon = SimplePolygonFromSequenceOfBundle(sequence)
     shortest_path = polygon.find_shortest_path(direction=False)
     
     visalize_sequence(plt, sequence)
