@@ -282,8 +282,10 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
     bundles of line segments
     '''
     def __init__(self, sequence: SequenceOfBundles):
-        polyline_P = polyline_Q = []
-        cv_rope_label_on_P = cv_rope_label_on_Q = [] # Convex rope label on P, Q
+        polyline_P = []
+        polyline_Q = []
+        cv_rope_label_on_P = [] # Convex rope label on P, Q
+        cv_rope_label_on_Q = []
         def add_pt_to_P(pt, cv_rope_label):
             polyline_P.append(pt)
             cv_rope_label_on_P.append(cv_rope_label)
@@ -329,8 +331,6 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                              if curr_polyline == self.polyline_P 
                              else self.polyline_P)
             tangent_polyline = []                
-            # Determine the current convex rope label
-            curr_cv_rope_label = cv_rope_labels_on_curr_polyline[start_index] 
              
             # Exception handling: when the goal is reached/near
             if curr_polyline[start_index] == self.polyline_P[-1]:
@@ -350,6 +350,11 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
             else: 
                 tangent_polyline.append(pt1)
                 tangent_polyline.append(pt0)
+                
+            # Determine the current convex rope label
+            curr_cv_rope_label = cv_rope_labels_on_curr_polyline[start_index] 
+            if curr_cv_rope_label == 0: 
+                curr_cv_rope_label = cv_rope_labels_on_curr_polyline[start_index+1]
             
             # Increment the convex hull
             for i in range(start_index+2, len(curr_polyline)):
@@ -362,7 +367,8 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                 # Condition: Only check intersection if the added point belongs to the different convex rope
                 if (
                     cv_rope_labels_on_curr_polyline[i] != curr_cv_rope_label or 
-                    cv_rope_labels_on_curr_polyline[i] == 0
+                    (cv_rope_labels_on_curr_polyline[i] == 0 and
+                     cv_rope_labels_on_curr_polyline[i-1] != curr_cv_rope_label)
                 ):
                     Ystar = []
                     for pt in dual_polyline:
@@ -370,19 +376,7 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                                 tangent_polyline[right_tp_idx], added_pt, pt, direction):
                             Ystar.append(pt)
                     
-                    if len(Ystar) == 0:
-                        # No intersection
-                        tangent_polyline = tangent_polyline[right_tp_idx:left_tp_idx+1]
-                        tangent_polyline.append(added_pt)
-                        tangent_polyline.insert(0, added_pt)
-                        if added_pt == self.polyline_P[-1]:
-                            print("Reach goal")
-                            print(tangent_polyline)
-                            start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
-                            shortest_path += tangent_polyline[start_tp_idx:]
-                            write_points_to_file(tangent_polyline, LOG_FILE)
-                            return shortest_path
-                    else:
+                    if len(Ystar) != 0:
                         # Find link
                         if len(tangent_polyline) == 2: # Handle the case of two points
                             Xstar = tangent_polyline 
@@ -400,6 +394,18 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                         curr_polyline = dual_polyline
                         direction = not direction
                         break
+                    
+                # Run if there is no intersection
+                tangent_polyline = tangent_polyline[right_tp_idx:left_tp_idx+1]
+                tangent_polyline.append(added_pt)
+                tangent_polyline.insert(0, added_pt)
+                if added_pt == self.polyline_P[-1]:
+                    print("Reach goal")
+                    print(tangent_polyline)
+                    start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
+                    shortest_path += tangent_polyline[start_tp_idx:]
+                    write_points_to_file(tangent_polyline, LOG_FILE)
+                    return shortest_path
             print(tangent_polyline)
             write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only
             

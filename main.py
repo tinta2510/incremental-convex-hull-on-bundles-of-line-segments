@@ -3,16 +3,16 @@ import matplotlib.pyplot as plt
 
 def visalize_sequence(plt, sequence: SequenceOfBundles):
     """Visualize the sequence of bundles."""
-    # Plot singleton points
-    singleton_x = [pt.x for pt in sequence.singleton]
-    singleton_y = [pt.y for pt in sequence.singleton]
-    plt.plot(singleton_x, singleton_y, 'bo--', label='Skeleton', linewidth=2.5)
+    # Plot skeleton points
+    skeleton_x = [pt.x for pt in sequence.skeleton]
+    skeleton_y = [pt.y for pt in sequence.skeleton]
+    plt.plot(skeleton_x, skeleton_y, 'bo--', label='Skeleton', linewidth=2.5)
 
     # Plot outer endpoints and line segments
     for i, outer_points in enumerate(sequence.outer_endpoints):
         for outer_pt in outer_points:
-            plt.plot([sequence.singleton[i].x, outer_pt.x],
-                    [sequence.singleton[i].y, outer_pt.y],
+            plt.plot([sequence.skeleton[i].x, outer_pt.x],
+                    [sequence.skeleton[i].y, outer_pt.y],
                     'r--', alpha=0.6)
 
 def visualize_shortest_path(plt, shortest_path: list[Point]):
@@ -68,7 +68,7 @@ def draw_convex_hull(plt, polygons):
     
     
 if __name__=="__main__":
-    sequence = SequenceOfBundles.load_sequence_from_file("input/input_1.txt", preprocess=False)
+    sequence = SequenceOfBundles.load_sequence_from_file("input/input_3.txt", preprocess=True)
     polygon = SimplePolygonFromSequenceOfBundle(sequence)
     shortest_path = polygon.find_shortest_path(direction=False)
     
