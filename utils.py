@@ -133,6 +133,7 @@ def decompose_polyline_to_convex_rope(polyline: list[Point]) -> list[int]:
         A, B = directions[i - 1], directions[i]
         if A != B and A != 0:
             directions[i] = 0
+        
     num = 1
     for i in range(1, len(directions) - 1):
         if directions[i] != 0:

@@ -282,57 +282,46 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
     bundles of line segments
     '''
     def __init__(self, sequence: SequenceOfBundles):
-        polyline_P = []
-        polyline_Q = []
-        cv_rope_label_on_P = [] # Convex rope label on P, Q
-        cv_rope_label_on_Q = []
-        def add_pt_to_P(pt, cv_rope_label):
-            polyline_P.append(pt)
-            cv_rope_label_on_P.append(cv_rope_label)
-        def add_pt_to_Q(pt, cv_rope_label):
-            polyline_Q.append(pt)
-            cv_rope_label_on_Q.append(cv_rope_label)
-
-        add_pt_to_P(sequence.skeleton[0], 0)
-        add_pt_to_Q(sequence.skeleton[0], 0)
-        
-        self.skeleton_labels = decompose_polyline_to_convex_rope(sequence.skeleton) # convex rope label on skeleton
+        polyline_P = [sequence.skeleton[0]]
+        polyline_Q = [sequence.skeleton[0]]
+        is_origin_P = [True]
+        is_origin_Q = [True]
         for i in range(1, len(sequence.skeleton)-1):
-            # WARNING: Not accept degenerate bundles
+            # WARNING: Not degenerate bundles
             if is_left(sequence.skeleton[i-1], 
                        sequence.skeleton[i],
                        sequence.outer_endpoints[i][0]
             ): 
-                add_pt_to_Q(sequence.skeleton[i], self.skeleton_labels[i])
+                polyline_Q.append(sequence.skeleton[i])
+                is_origin_Q.append(True)
                 for outer_pt in sequence.outer_endpoints[i]:
-                    add_pt_to_P(outer_pt, self.skeleton_labels[i])
+                    polyline_P.append(outer_pt)
+                    is_origin_P.append(False)
             else:
-                add_pt_to_P(sequence.skeleton[i], self.skeleton_labels[i])
+                polyline_P.append(sequence.skeleton[i])
+                is_origin_P.append(True)
                 for outer_pt in sequence.outer_endpoints[i]:
-                    add_pt_to_Q(outer_pt, self.skeleton_labels[i])
-        add_pt_to_P(sequence.skeleton[-1], self.skeleton_labels[-1])
-        add_pt_to_Q(sequence.skeleton[-1], self.skeleton_labels[-1])
-
+                    polyline_Q.append(outer_pt)
+                    is_origin_Q.append(False)
+        polyline_P.append(sequence.skeleton[-1])
+        polyline_Q.append(sequence.skeleton[-1])
+        is_origin_P.append(True)
+        is_origin_Q.append(True)
         super().__init__(polyline_P, polyline_Q)
-        
-        self.cv_rope_label_on_P = cv_rope_label_on_P
-        self.cv_rope_label_on_Q = cv_rope_label_on_Q   
+        self.is_origin_P = is_origin_P
+        self.is_origin_Q = is_origin_Q
         
     def find_shortest_path(self, direction: bool =  True):
         shortest_path = []
         start_index = 0
         curr_polyline = self.polyline_P if direction else self.polyline_Q
+        prev_is_origin = True
         while True:
-            # Start a convex hull
-            cv_rope_labels_on_curr_polyline = (self.cv_rope_label_on_P 
-                                   if curr_polyline is self.polyline_P 
-                                   else self.cv_rope_label_on_Q)
-            dual_polyline = (self.polyline_Q  
-                             if curr_polyline == self.polyline_P 
-                             else self.polyline_P)
-            tangent_polyline = []                
-             
-            # Exception handling: when the goal is reached/near
+            dual_polyline = self.polyline_Q  \
+                             if curr_polyline == self.polyline_P \
+                             else self.polyline_P
+            tangent_polyline = []                 
+            # Assign first three point of the polyline
             if curr_polyline[start_index] == self.polyline_P[-1]:
                 shortest_path += curr_polyline[start_index]
                 return shortest_path
@@ -340,7 +329,7 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                 shortest_path += [curr_polyline[start_index], curr_polyline[start_index+1]]
                 return shortest_path
             
-            # Assign first three point of the polyline
+            # Initialize the convex hull
             pt0 = curr_polyline[start_index]
             pt1 = curr_polyline[start_index+1]
             pt2 = curr_polyline[start_index+2]
@@ -350,26 +339,17 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
             else: 
                 tangent_polyline.append(pt1)
                 tangent_polyline.append(pt0)
-                
-            # Determine the current convex rope label
-            curr_cv_rope_label = cv_rope_labels_on_curr_polyline[start_index] 
-            if curr_cv_rope_label == 0: 
-                curr_cv_rope_label = cv_rope_labels_on_curr_polyline[start_index+1]
             
             # Increment the convex hull
             for i in range(start_index+2, len(curr_polyline)):
                 added_pt = curr_polyline[i]
-
+                added_pt_is_origin = self.is_origin_P[i] if curr_polyline == self.polyline_P else self.is_origin_Q[i]
+                
                 # Find the tangent points
                 left_tp_idx, right_tp_idx = self.find_tangent_points(tangent_polyline, added_pt, direction)
                 
                 # Check intersection
-                # Condition: Only check intersection if the added point belongs to the different convex rope
-                if (
-                    cv_rope_labels_on_curr_polyline[i] != curr_cv_rope_label or 
-                    (cv_rope_labels_on_curr_polyline[i] == 0 and
-                     cv_rope_labels_on_curr_polyline[i-1] != curr_cv_rope_label)
-                ):
+                if prev_is_origin == True: 
                     Ystar = []
                     for pt in dual_polyline:
                         if self.is_inside_new_hull(tangent_polyline[left_tp_idx], 
@@ -395,10 +375,11 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                         direction = not direction
                         break
                     
-                # Run if there is no intersection
+                # No intersection
                 tangent_polyline = tangent_polyline[right_tp_idx:left_tp_idx+1]
                 tangent_polyline.append(added_pt)
                 tangent_polyline.insert(0, added_pt)
+                prev_is_origin = added_pt_is_origin
                 if added_pt == self.polyline_P[-1]:
                     print("Reach goal")
                     print(tangent_polyline)
@@ -406,6 +387,5 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                     shortest_path += tangent_polyline[start_tp_idx:]
                     write_points_to_file(tangent_polyline, LOG_FILE)
                     return shortest_path
-            print(tangent_polyline)
-            write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only
-            
+                print(tangent_polyline)
+                write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only
