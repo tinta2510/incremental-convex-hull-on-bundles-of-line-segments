@@ -24,7 +24,7 @@ def write_points_to_file(points: list[Point], filename: str) -> None:
             file.write("\n")
     except Exception as e:
         print(f"An error occurred while writing points to the file: {e}")
-    
+
 class SequenceOfBundles:
     """
     Class for representing a sequence of bundles
@@ -238,24 +238,30 @@ class SimplePolygon:
                 
                 # # Check intersection
                 Ystar = []
-                for pt in dual_polyline:
-                    if self.is_inside_new_hull(tangent_polyline[left_tp_idx], 
-                            tangent_polyline[right_tp_idx], added_pt, pt, direction):
+                intersection = False
+                # for pt in dual_polyline:
+                #     if self.is_inside_new_hull(tangent_polyline[left_tp_idx], 
+                #             tangent_polyline[right_tp_idx], added_pt, pt, direction):
+                #         Ystar.append(pt)
+                for prev_pt, pt in zip(dual_polyline, dual_polyline[1:]):
+                    if self.is_inside_new_hull(
+                        tangent_polyline[left_tp_idx], 
+                        tangent_polyline[right_tp_idx], 
+                        added_pt, 
+                        pt, 
+                        direction
+                    ):
+                        if not self.is_inside_new_hull(
+                            tangent_polyline[left_tp_idx], 
+                            tangent_polyline[right_tp_idx], 
+                            added_pt, 
+                            prev_pt, 
+                            direction
+                        ): 
+                            intersection = True
                         Ystar.append(pt)
                 
-                if len(Ystar) == 0:
-                    # No intersection
-                    tangent_polyline = tangent_polyline[right_tp_idx:left_tp_idx+1]
-                    tangent_polyline.append(added_pt)
-                    tangent_polyline.insert(0, added_pt)
-                    if added_pt == self.polyline_P[-1]:
-                        print("Reach goal")
-                        print(tangent_polyline)
-                        start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
-                        shortest_path += tangent_polyline[start_tp_idx:]
-                        write_points_to_file(tangent_polyline, LOG_FILE)
-                        return shortest_path
-                else:
+                if len(Ystar) != 0 and intersection:
                     # Find link
                     if len(tangent_polyline) == 2: # Handle the case of two points
                         Xstar = tangent_polyline 
@@ -273,6 +279,18 @@ class SimplePolygon:
                     curr_polyline = dual_polyline
                     direction = not direction
                     break
+                
+                # No intersection
+                tangent_polyline = tangent_polyline[right_tp_idx:left_tp_idx+1]
+                tangent_polyline.append(added_pt)
+                tangent_polyline.insert(0, added_pt)
+                if added_pt == self.polyline_P[-1]:
+                    print("Reach goal")
+                    print(tangent_polyline)
+                    start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
+                    shortest_path += tangent_polyline[start_tp_idx:]
+                    write_points_to_file(tangent_polyline, LOG_FILE)
+                    return shortest_path
             print(tangent_polyline)
             write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only
             
@@ -284,108 +302,23 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
     def __init__(self, sequence: SequenceOfBundles):
         polyline_P = [sequence.skeleton[0]]
         polyline_Q = [sequence.skeleton[0]]
-        is_origin_P = [True]
-        is_origin_Q = [True]
         for i in range(1, len(sequence.skeleton)-1):
             # WARNING: Not degenerate bundles
+            if sequence.outer_endpoints[i] == []:
+                polyline_P.append(sequence.skeleton[i])
+                polyline_Q.append(sequence.skeleton[i])
+                continue
             if is_left(sequence.skeleton[i-1], 
                        sequence.skeleton[i],
                        sequence.outer_endpoints[i][0]
             ): 
                 polyline_Q.append(sequence.skeleton[i])
-                is_origin_Q.append(True)
                 for outer_pt in sequence.outer_endpoints[i]:
                     polyline_P.append(outer_pt)
-                    is_origin_P.append(False)
             else:
                 polyline_P.append(sequence.skeleton[i])
-                is_origin_P.append(True)
                 for outer_pt in sequence.outer_endpoints[i]:
                     polyline_Q.append(outer_pt)
-                    is_origin_Q.append(False)
         polyline_P.append(sequence.skeleton[-1])
         polyline_Q.append(sequence.skeleton[-1])
-        is_origin_P.append(True)
-        is_origin_Q.append(True)
         super().__init__(polyline_P, polyline_Q)
-        self.is_origin_P = is_origin_P
-        self.is_origin_Q = is_origin_Q
-        
-    def find_shortest_path(self, direction: bool =  True):
-        shortest_path = []
-        start_index = 0
-        curr_polyline = self.polyline_P if direction else self.polyline_Q
-        prev_is_origin = True
-        while True:
-            dual_polyline = self.polyline_Q  \
-                             if curr_polyline == self.polyline_P \
-                             else self.polyline_P
-            tangent_polyline = []                 
-            # Assign first three point of the polyline
-            if curr_polyline[start_index] == self.polyline_P[-1]:
-                shortest_path += curr_polyline[start_index]
-                return shortest_path
-            elif curr_polyline[start_index+1] == self.polyline_P[-1]:
-                shortest_path += [curr_polyline[start_index], curr_polyline[start_index+1]]
-                return shortest_path
-            
-            # Initialize the convex hull
-            pt0 = curr_polyline[start_index]
-            pt1 = curr_polyline[start_index+1]
-            pt2 = curr_polyline[start_index+2]
-            if is_left(pt0, pt1, pt2, direction):
-                tangent_polyline.append(pt0)
-                tangent_polyline.append(pt1)
-            else: 
-                tangent_polyline.append(pt1)
-                tangent_polyline.append(pt0)
-            
-            # Increment the convex hull
-            for i in range(start_index+2, len(curr_polyline)):
-                added_pt = curr_polyline[i]
-                added_pt_is_origin = self.is_origin_P[i] if curr_polyline == self.polyline_P else self.is_origin_Q[i]
-                
-                # Find the tangent points
-                left_tp_idx, right_tp_idx = self.find_tangent_points(tangent_polyline, added_pt, direction)
-                
-                # Check intersection
-                if prev_is_origin == True: 
-                    Ystar = []
-                    for pt in dual_polyline:
-                        if self.is_inside_new_hull(tangent_polyline[left_tp_idx], 
-                                tangent_polyline[right_tp_idx], added_pt, pt, direction):
-                            Ystar.append(pt)
-                    
-                    if len(Ystar) != 0:
-                        # Find link
-                        if len(tangent_polyline) == 2: # Handle the case of two points
-                            Xstar = tangent_polyline 
-                        else:
-                            Xstar = tangent_polyline[left_tp_idx:-1] + tangent_polyline[0:right_tp_idx+1] 
-                        Ustar, Vstar = self.find_link(Xstar, Ystar, direction)
-                        if not Ustar:
-                            raise Exception("Cannot find link [u*, v*]")
-                        
-                        start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
-                        Ustar_idx = tangent_polyline.index(Ustar)
-                        shortest_path += self.get_tangent_line(tangent_polyline, start_tp_idx, Ustar_idx)
-                        
-                        start_index = dual_polyline.index(Vstar)
-                        curr_polyline = dual_polyline
-                        direction = not direction
-                        break
-                    
-                # No intersection
-                tangent_polyline = tangent_polyline[right_tp_idx:left_tp_idx+1]
-                tangent_polyline.append(added_pt)
-                tangent_polyline.insert(0, added_pt)
-                prev_is_origin = added_pt_is_origin
-                if added_pt == self.polyline_P[-1]:
-                    print("Reach goal")
-                    print(tangent_polyline)
-                    start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
-                    shortest_path += tangent_polyline[start_tp_idx:]
-                    write_points_to_file(tangent_polyline, LOG_FILE)
-                    return shortest_path
-                print(tangent_polyline)
-                write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only
