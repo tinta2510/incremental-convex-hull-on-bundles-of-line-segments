@@ -204,6 +204,7 @@ class SimplePolygon:
     def find_shortest_path(self, direction: bool =  True):
         shortest_path = []
         start_index = 0
+        checking_pt_idx = 0
         curr_polyline = self.polyline_P if direction else self.polyline_Q
         while True:
             dual_polyline = self.polyline_Q  \
@@ -238,30 +239,12 @@ class SimplePolygon:
                 
                 # # Check intersection
                 Ystar = []
-                intersection = False
-                # for pt in dual_polyline:
-                #     if self.is_inside_new_hull(tangent_polyline[left_tp_idx], 
-                #             tangent_polyline[right_tp_idx], added_pt, pt, direction):
-                #         Ystar.append(pt)
-                for prev_pt, pt in zip(dual_polyline, dual_polyline[1:]):
-                    if self.is_inside_new_hull(
-                        tangent_polyline[left_tp_idx], 
-                        tangent_polyline[right_tp_idx], 
-                        added_pt, 
-                        pt, 
-                        direction
-                    ):
-                        if not self.is_inside_new_hull(
-                            tangent_polyline[left_tp_idx], 
-                            tangent_polyline[right_tp_idx], 
-                            added_pt, 
-                            prev_pt, 
-                            direction
-                        ): 
-                            intersection = True
+                for pt in dual_polyline[checking_pt_idx+1:]:
+                    if self.is_inside_new_hull(tangent_polyline[left_tp_idx], 
+                            tangent_polyline[right_tp_idx], added_pt, pt, direction):
                         Ystar.append(pt)
                 
-                if len(Ystar) != 0 and intersection:
+                if len(Ystar) != 0:
                     # Find link
                     if len(tangent_polyline) == 2: # Handle the case of two points
                         Xstar = tangent_polyline 
@@ -276,6 +259,7 @@ class SimplePolygon:
                     shortest_path += self.get_tangent_line(tangent_polyline, start_tp_idx, Ustar_idx)
                     
                     start_index = dual_polyline.index(Vstar)
+                    checking_pt_idx = curr_polyline.index(Ustar)
                     curr_polyline = dual_polyline
                     direction = not direction
                     break
@@ -286,10 +270,10 @@ class SimplePolygon:
                 tangent_polyline.insert(0, added_pt)
                 if added_pt == self.polyline_P[-1]:
                     print("Reach goal")
-                    print(tangent_polyline)
                     start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
                     shortest_path += tangent_polyline[start_tp_idx:]
                     write_points_to_file(tangent_polyline, LOG_FILE)
+                    print(f'{shortest_path=}')
                     return shortest_path
             print(tangent_polyline)
             write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only

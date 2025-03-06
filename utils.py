@@ -65,6 +65,7 @@ def is_smaller_angle(angle1: float, angle2: float) -> bool:
     return angle1 - angle2 < -EPSILON
 
 def is_left(p0: Point, p1: Point, p: Point, direction: bool = 1) -> bool:
+    print(p0, p1, p)
     return (((p1.x - p0.x)*(p.y - p0.y) - (p.x - p0.x)*(p1.y - p0.y)) * 
             (1 if direction else -1)) > EPSILON
     
