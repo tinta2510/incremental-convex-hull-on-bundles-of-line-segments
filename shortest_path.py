@@ -1,9 +1,9 @@
 import logging
 from itertools import combinations
 from utils import calculate_distance, is_larger_angle, \
-                    is_equal_angle, is_smaller_angle, \
+                    is_equal_angle, \
                     is_left, is_left_on, calculate_angle, \
-                    Point, decompose_polyline_to_convex_rope
+                    Point, do_intersect
 
 LOG_FILE = "./convex_hull.log"  
 with open(LOG_FILE, 'w') as file:  # Open in write mode to clear content
@@ -200,6 +200,17 @@ class SimplePolygon:
             ):
             right_tp_idx = right_tp_idx + 1
         return left_tp_idx, right_tp_idx
+
+    def find_left_tangent_point(self, tangent_polyline, added_pt, direction):
+        left_tp_idx = len(tangent_polyline) - 1
+        while left_tp_idx > 0 and not is_left(
+                tangent_polyline[left_tp_idx-1], 
+                tangent_polyline[left_tp_idx], 
+                added_pt, 
+                direction
+            ):
+            left_tp_idx = left_tp_idx - 1
+        return left_tp_idx
         
     def find_shortest_path(self, direction: bool =  True):
         shortest_path = []
@@ -210,70 +221,49 @@ class SimplePolygon:
                              if curr_polyline == self.polyline_P \
                              else self.polyline_P
             tangent_polyline = []                 
-            # Assign first three point of the polyline
+
             if curr_polyline[start_index] == self.polyline_P[-1]:
-                shortest_path += curr_polyline[start_index]
+                shortest_path += [curr_polyline[start_index]]
                 return shortest_path
             elif curr_polyline[start_index+1] == self.polyline_P[-1]:
                 shortest_path += [curr_polyline[start_index], curr_polyline[start_index+1]]
                 return shortest_path
             
-            # Initialize the convex hull
-            pt0 = curr_polyline[start_index]
-            pt1 = curr_polyline[start_index+1]
-            pt2 = curr_polyline[start_index+2]
-            if is_left(pt0, pt1, pt2, direction):
-                tangent_polyline.append(pt0)
-                tangent_polyline.append(pt1)
-            else: 
-                tangent_polyline.append(pt1)
-                tangent_polyline.append(pt0)
-            
+            # Initialize the tangent polyline
+            tangent_polyline.append(curr_polyline[start_index])
+            tangent_polyline.append(curr_polyline[start_index+1])
+
             # Increment the convex hull
             for i in range(start_index+2, len(curr_polyline)):
                 added_pt = curr_polyline[i]
 
                 # Find the tangent points
-                left_tp_idx, right_tp_idx = self.find_tangent_points(tangent_polyline, added_pt, direction)
+                left_tp_idx = self.find_left_tangent_point(tangent_polyline, added_pt, direction)
                 
                 # # Check intersection
                 Ystar = []
                 intersection = False
-                # for pt in dual_polyline:
-                #     if self.is_inside_new_hull(tangent_polyline[left_tp_idx], 
-                #             tangent_polyline[right_tp_idx], added_pt, pt, direction):
-                #         Ystar.append(pt)
                 for prev_pt, pt in zip(dual_polyline, dual_polyline[1:]):
-                    if self.is_inside_new_hull(
-                        tangent_polyline[left_tp_idx], 
-                        tangent_polyline[right_tp_idx], 
-                        added_pt, 
-                        pt, 
-                        direction
+                    if (not is_left(prev_pt, tangent_polyline[left_tp_idx], added_pt, direction) and
+                        is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
+                        do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) 
                     ):
-                        if not self.is_inside_new_hull(
-                            tangent_polyline[left_tp_idx], 
-                            tangent_polyline[right_tp_idx], 
-                            added_pt, 
-                            prev_pt, 
-                            direction
-                        ): 
-                            intersection = True
+                        intersection = True
                         Ystar.append(pt)
+                    elif (is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and intersection):
+                        Ystar.append(pt)
+                    elif not is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction):
+                        intersection = False
                 
-                if len(Ystar) != 0 and intersection:
+                if len(Ystar) != 0:
                     # Find link
-                    if len(tangent_polyline) == 2: # Handle the case of two points
-                        Xstar = tangent_polyline 
-                    else:
-                        Xstar = tangent_polyline[left_tp_idx:-1] + tangent_polyline[0:right_tp_idx+1] 
+                    Xstar = tangent_polyline[left_tp_idx:] 
                     Ustar, Vstar = self.find_link(Xstar, Ystar, direction)
                     if not Ustar:
                         raise Exception("Cannot find link [u*, v*]")
                     
-                    start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
                     Ustar_idx = tangent_polyline.index(Ustar)
-                    shortest_path += self.get_tangent_line(tangent_polyline, start_tp_idx, Ustar_idx)
+                    shortest_path += tangent_polyline[:Ustar_idx+1]
                     
                     start_index = dual_polyline.index(Vstar)
                     curr_polyline = dual_polyline
@@ -281,14 +271,12 @@ class SimplePolygon:
                     break
                 
                 # No intersection
-                tangent_polyline = tangent_polyline[right_tp_idx:left_tp_idx+1]
+                tangent_polyline = tangent_polyline[:left_tp_idx+1]
                 tangent_polyline.append(added_pt)
-                tangent_polyline.insert(0, added_pt)
                 if added_pt == self.polyline_P[-1]:
                     print("Reach goal")
                     print(tangent_polyline)
-                    start_tp_idx = tangent_polyline.index(curr_polyline[start_index])
-                    shortest_path += tangent_polyline[start_tp_idx:]
+                    shortest_path += tangent_polyline
                     write_points_to_file(tangent_polyline, LOG_FILE)
                     return shortest_path
             print(tangent_polyline)

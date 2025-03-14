@@ -37,18 +37,6 @@ class Point:
     def __ne__(self, other):
         # Negate the result of __eq__
         return not self.__eq__(other)
-    
-class LineSegment:
-    def __init__(self, start_point: Point, end_point: Point) -> None:
-        self.start_point = start_point
-        self.end_point = end_point
-    
-    def __repr__(self) -> str:
-        return f"[{self.start_point, self.end_point}]"
-    
-    @property
-    def length(self) -> float:
-        return calculate_distance(self.start_point, self.end_point)
 
 EPSILON = 1e-6
 
@@ -113,31 +101,42 @@ def calculate_angle(A: Point, B: Point, C: Point) -> float:
     
     return angle_degrees
             
-def decompose_polyline_to_convex_rope(polyline: list[Point]) -> list[int]:
+def orientation(p: Point, q: Point, r: Point) -> int:
     """
-    Mark the turning directions of a polyline.
-
-    Args:
-        polyline (list[Point]): The list of points in the polyline.
-
+    Determines the orientation of the triplet (p, q, r).
     Returns:
-        list[bool]: The list of labels to distinguish convex ropes
+    0 -> Collinear
+    1 -> Clockwise
+    -1 -> Counterclockwise
     """
-    directions = [0] * len(polyline)
-    for i in range(1, len(directions) - 1):
-        if is_left(polyline[i - 1], polyline[i], polyline[i + 1]):
-            directions[i] = 1
-        else:
-            directions[i] = -1
-    for i in range(1, len(directions) - 1):
-        A, B = directions[i - 1], directions[i]
-        if A != B and A != 0:
-            directions[i] = 0
-        
-    num = 1
-    for i in range(1, len(directions) - 1):
-        if directions[i] != 0:
-            directions[i] = num * directions[i]
-        else:
-            num += 1
-    return directions
+    val = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+    if val == 0:
+        return 0  # Collinear
+    return 1 if val > 0 else -1  # Clockwise or Counterclockwise
+
+def on_segment(p: Point, q: Point, r: Point) -> bool:
+    """
+    Checks if point r lies on segment pq (assuming collinear condition is met).
+    """
+    return min(p.x, q.x) + EPSILON <= r.x <= max(p.x, q.x) + EPSILON and min(p.y, q.y) + EPSILON <= r.y <= max(p.y, q.y) + EPSILON
+
+def do_intersect(A: Point, B: Point, C: Point, D: Point) -> bool:
+    """
+    Returns True if segments AB and CD intersect.
+    """
+    o1 = orientation(A, B, C)
+    o2 = orientation(A, B, D)
+    o3 = orientation(C, D, A)
+    o4 = orientation(C, D, B)
+
+    # General case: opposite orientations
+    if o1 != o2 and o3 != o4:
+        return True
+
+    # Special case: Check collinear points and if they overlap
+    if o1 == 0 and on_segment(A, B, C): return True
+    if o2 == 0 and on_segment(A, B, D): return True
+    if o3 == 0 and on_segment(C, D, A): return True
+    if o4 == 0 and on_segment(C, D, B): return True
+
+    return False
