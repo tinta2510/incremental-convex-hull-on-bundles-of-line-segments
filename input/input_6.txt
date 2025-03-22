@@ -1,0 +1,18 @@
+# Radius of the bundles
+Radius: 10
+
+# Vertices of the sequence (x, y)
+Vertices:
+-9.98 2.94
+-2.88 4.38
+3.36 0.58
+-6.34 -0.14
+-13.04 2.44
+
+# Line segments for each vertex
+LineSegments:
+1 -5.26 1.96
+1 -2.92 2.78
+2 -2.9 0.9
+3 -6.4 3.2
+3 -7.56 2.62

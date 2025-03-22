@@ -6,7 +6,7 @@ def visalize_sequence(plt, sequence: SequenceOfBundles):
     # Plot skeleton points
     skeleton_x = [pt.x for pt in sequence.skeleton]
     skeleton_y = [pt.y for pt in sequence.skeleton]
-    plt.plot(skeleton_x, skeleton_y, 'bo--', label='Skeleton', linewidth=2.5)
+    plt.plot(skeleton_x, skeleton_y, 'bo-', label='Skeleton', linewidth=2.5)
 
     # Plot outer endpoints and line segments
     for i, outer_points in enumerate(sequence.outer_endpoints):
@@ -25,12 +25,12 @@ def visualize_simple_polygon(plt, polygon: SimplePolygon):
     # Plot polyline P
     polyline_P_x = [pt.x for pt in polygon.polyline_P]
     polyline_P_y = [pt.y for pt in polygon.polyline_P]
-    plt.plot(polyline_P_x, polyline_P_y, 'o-', label='_nolegend_', linewidth=1, color='gray')
+    plt.plot(polyline_P_x, polyline_P_y, 'o:', label='Polyline P', linewidth=4, color='black')
     
     # Plot polyline Q
     polyline_Q_x = [pt.x for pt in polygon.polyline_Q]
     polyline_Q_y = [pt.y for pt in polygon.polyline_Q]
-    plt.plot(polyline_Q_x, polyline_Q_y, 'o-', label='_nolegend_', linewidth=1, color='gray')
+    plt.plot(polyline_Q_x, polyline_Q_y, 'o:', label='Polyline Q', linewidth=4, color='gray')
     
 def read_convex_hull_from_file(filename):
     """
@@ -68,7 +68,7 @@ def draw_convex_hull(plt, polygons):
     
     
 if __name__=="__main__":
-    sequence = SequenceOfBundles.load_sequence_from_file("input/input_5.txt", preprocess=False)
+    sequence = SequenceOfBundles.load_sequence_from_file("input/input_6.txt", preprocess=False)
     polygon = SimplePolygonFromSequenceOfBundle(sequence)
     shortest_path = polygon.find_shortest_path(direction=False)
     # shortest_path = SimplePolygon.find_shortest_path(polygon, direction=False)    

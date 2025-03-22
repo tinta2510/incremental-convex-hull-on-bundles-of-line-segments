@@ -215,6 +215,7 @@ class SimplePolygon:
     def find_shortest_path(self, direction: bool =  True):
         shortest_path = []
         start_index = 0
+        checking_pt_index = 0
         curr_polyline = self.polyline_P if direction else self.polyline_Q
         while True:
             dual_polyline = self.polyline_Q  \
@@ -243,7 +244,7 @@ class SimplePolygon:
                 # # Check intersection
                 Ystar = []
                 intersection = False
-                for prev_pt, pt in zip(dual_polyline, dual_polyline[1:]):
+                for prev_pt, pt in zip(dual_polyline[checking_pt_index:], dual_polyline[checking_pt_index+1:]):
                     if (not is_left(prev_pt, tangent_polyline[left_tp_idx], added_pt, direction) and
                         is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
                         do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) 
@@ -252,7 +253,8 @@ class SimplePolygon:
                         Ystar.append(pt)
                     elif (is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and intersection):
                         Ystar.append(pt)
-                    elif not is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction):
+                    elif (not is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
+                        do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) ):
                         intersection = False
                 
                 if len(Ystar) != 0:
@@ -266,6 +268,7 @@ class SimplePolygon:
                     shortest_path += tangent_polyline[:Ustar_idx+1]
                     
                     start_index = dual_polyline.index(Vstar)
+                    checking_pt_index = Ustar_idx
                     curr_polyline = dual_polyline
                     direction = not direction
                     break
