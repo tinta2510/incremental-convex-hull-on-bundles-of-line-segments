@@ -1,6 +1,6 @@
 from shortest_path import SimplePolygon, SequenceOfBundles, Point, SimplePolygonFromSequenceOfBundle
 import matplotlib.pyplot as plt
-
+import time
 def visalize_sequence(plt, sequence: SequenceOfBundles):
     """Visualize the sequence of bundles."""
     # Plot skeleton points
@@ -68,9 +68,16 @@ def draw_convex_hull(plt, polygons):
     
     
 if __name__=="__main__":
-    sequence = SequenceOfBundles.load_sequence_from_file("input/input_6.txt", preprocess=False)
+    sequence = SequenceOfBundles.load_sequence_from_file("input/input_5.txt", preprocess=True)
     polygon = SimplePolygonFromSequenceOfBundle(sequence)
+    
+    starting_time = time.time()
     shortest_path = polygon.find_shortest_path(direction=False)
+    print("Time taken to find shortest path using 1: ", time.time() - starting_time)
+    
+    starting_time_2 = time.time()
+    shortest_path_2 = SimplePolygon.find_shortest_path(polygon, direction=False)
+    print("Time taken to find shortest path using 2: ", time.time() - starting_time_2)
     # shortest_path = SimplePolygon.find_shortest_path(polygon, direction=False)    
     
     visalize_sequence(plt, sequence)

@@ -13,6 +13,9 @@ class Point:
         if isinstance(other, Point):
             return self.x == other.x and self.y == other.y
         return False
+
+    def __hash__(self):
+        return hash((self.x, self.y))
     
     @property
     def magnitude(self) -> float:

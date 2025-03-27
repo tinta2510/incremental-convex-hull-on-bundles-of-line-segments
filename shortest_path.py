@@ -4,6 +4,7 @@ from utils import calculate_distance, is_larger_angle, \
                     is_equal_angle, \
                     is_left, is_left_on, calculate_angle, \
                     Point, do_intersect
+from intervaltree import IntervalTree
 
 LOG_FILE = "./convex_hull.log"  
 with open(LOG_FILE, 'w') as file:  # Open in write mode to clear content
@@ -278,11 +279,9 @@ class SimplePolygon:
                 tangent_polyline.append(added_pt)
                 if added_pt == self.polyline_P[-1]:
                     print("Reach goal")
-                    print(tangent_polyline)
                     shortest_path += tangent_polyline
                     write_points_to_file(tangent_polyline, LOG_FILE)
                     return shortest_path
-            print(tangent_polyline)
             write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only
             
 class SimplePolygonFromSequenceOfBundle(SimplePolygon):
@@ -293,23 +292,147 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
     def __init__(self, sequence: SequenceOfBundles):
         polyline_P = [sequence.skeleton[0]]
         polyline_Q = [sequence.skeleton[0]]
-        for i in range(1, len(sequence.skeleton)-1):
+        for i, vertex in enumerate(sequence.skeleton[1:-1], start=1):
             # WARNING: Not degenerate bundles
-            if sequence.outer_endpoints[i] == []:
-                polyline_P.append(sequence.skeleton[i])
-                polyline_Q.append(sequence.skeleton[i])
+            if sequence.outer_endpoints[i] == []: 
+                polyline_P.append(vertex)
+                polyline_Q.append(vertex)
                 continue
             if is_left(sequence.skeleton[i-1], 
-                       sequence.skeleton[i],
+                       vertex,
                        sequence.outer_endpoints[i][0]
             ): 
-                polyline_Q.append(sequence.skeleton[i])
+                polyline_Q.append(vertex)
                 for outer_pt in sequence.outer_endpoints[i]:
                     polyline_P.append(outer_pt)
             else:
-                polyline_P.append(sequence.skeleton[i])
+                polyline_P.append(vertex)
                 for outer_pt in sequence.outer_endpoints[i]:
                     polyline_Q.append(outer_pt)
         polyline_P.append(sequence.skeleton[-1])
         polyline_Q.append(sequence.skeleton[-1])
         super().__init__(polyline_P, polyline_Q)
+        self.sequence = sequence
+        
+        # Preprocess the dictionary for quick lookups  
+        self.bundle_lookup = {}
+        '''
+        Structure of bundle_lookup:
+        - key: Point
+        - value: (idx, is_vertex)
+            - idx (int): the index of the bundle
+            - is_vertex (bool): True if the point is a vertex of the bundle, False otherwise
+        '''
+        for i, vertex in enumerate(sequence.skeleton):
+            self.bundle_lookup[vertex] = (i, True)  # Mark as a vertex
+            for outer_pt in sequence.outer_endpoints[i]:
+                self.bundle_lookup[outer_pt] = (i, False)
+                
+        # Partition the skeleton
+        marked_skeleton = [1 if pt in self.polyline_P else 0 for pt in self.sequence.skeleton]
+        starting_idx, ending_idx = 0, None
+        curr_val = marked_skeleton[1]
+        intervals = []
+        label = 0
+        for i, val in enumerate(marked_skeleton[2:], start=2):
+            if val != curr_val:
+                ending_idx = i+1
+                intervals.append((starting_idx, ending_idx, label))
+                label += 1
+                starting_idx = i-1
+                curr_val = val
+        if ending_idx != len(marked_skeleton):
+            intervals.append((starting_idx, len(marked_skeleton), label))
+        self.skeleton_partitions = IntervalTree.from_tuples(intervals)
+        
+    def get_bundle_idx(self, pt: Point):
+        """
+        Get the index of the bundle that contains the point
+        
+        Returns: (idx, is_vertex)
+        - idx (int): the index of the bundle
+        - is_vertex (True): True if the point is a vertex of the bundle, False otherwise
+        - None, None: if the point is not in any bundle
+        """
+        return self.bundle_lookup.get(pt, (None, None))
+    
+    def find_shortest_path(self, direction: bool =  True):
+        print("Improved version")
+        shortest_path = []
+        start_index = 0
+        checking_pt_index = 0
+        curr_polyline = self.polyline_P if direction else self.polyline_Q
+        while True:
+            dual_polyline = self.polyline_Q  \
+                             if curr_polyline == self.polyline_P \
+                             else self.polyline_P
+            tangent_polyline = []                 
+
+            if curr_polyline[start_index] == self.polyline_P[-1]:
+                shortest_path += [curr_polyline[start_index]]
+                return shortest_path
+            elif curr_polyline[start_index+1] == self.polyline_P[-1]:
+                shortest_path += [curr_polyline[start_index], curr_polyline[start_index+1]]
+                return shortest_path
+            
+            # Initialize the tangent polyline
+            tangent_polyline.append(curr_polyline[start_index])
+            tangent_polyline.append(curr_polyline[start_index+1])
+            
+            bundle_idx = self.get_bundle_idx(curr_polyline[start_index+1])[0]
+            starting_partition = list(self.skeleton_partitions[bundle_idx])[-1].data
+            # Check if the starting point is a vertex of the bundle
+            is_starting_pt_vertex = self.get_bundle_idx(curr_polyline[start_index+1])[1] 
+        
+            # Increment the convex hull
+            for i in range(start_index+2, len(curr_polyline)):
+                added_pt = curr_polyline[i]
+
+                # Find the tangent points
+                left_tp_idx = self.find_left_tangent_point(tangent_polyline, added_pt, direction)
+                
+                bundle_idx = self.get_bundle_idx(added_pt)[0]
+                partition = list(self.skeleton_partitions[bundle_idx])[-1].data
+                #Check intersection
+                if not is_starting_pt_vertex or starting_partition != partition:
+                    Ystar = []
+                    intersection = False
+                    for prev_pt, pt in zip(dual_polyline[checking_pt_index:], dual_polyline[checking_pt_index+1:]):
+                        if (not is_left(prev_pt, tangent_polyline[left_tp_idx], added_pt, direction) and
+                            is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
+                            do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) 
+                        ):
+                            intersection = True
+                            Ystar.append(pt)
+                        elif (is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and intersection):
+                            Ystar.append(pt)
+                        elif (not is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
+                            do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) ):
+                            intersection = False
+                    
+                    if len(Ystar) != 0:
+                        # Find link
+                        Xstar = tangent_polyline[left_tp_idx:] 
+                        Ustar, Vstar = self.find_link(Xstar, Ystar, direction)
+                        if not Ustar:
+                            raise Exception("Cannot find link [u*, v*]")
+                        
+                        Ustar_idx = tangent_polyline.index(Ustar)
+                        shortest_path += tangent_polyline[:Ustar_idx+1]
+                        
+                        start_index = dual_polyline.index(Vstar)
+                        checking_pt_index = Ustar_idx
+                        curr_polyline = dual_polyline
+                        direction = not direction
+                        break
+                
+                # No intersection
+                tangent_polyline = tangent_polyline[:left_tp_idx+1]
+                tangent_polyline.append(added_pt)
+                if added_pt == self.polyline_P[-1]:
+                    print("Reach goal")
+                    shortest_path += tangent_polyline
+                    write_points_to_file(tangent_polyline, LOG_FILE)
+                    return shortest_path
+            write_points_to_file(tangent_polyline, LOG_FILE) # For illustration only
+            
