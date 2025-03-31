@@ -62,35 +62,47 @@ def draw_convex_hull(plt, polygons):
     Draw polygons using matplotlib.
     :param polygons: A list of polygons, where each polygon is a list of (x, y) tuples.
     """
-    for _, polygon in enumerate(polygons):
-        x_coords, y_coords = zip(*polygon)  # Unpack the points
+    for  polygon in polygons:
+        x_coords = [pt.x for pt in polygon]  # Unpack the points
+        y_coords = [pt.y for pt in polygon]
         plt.fill(x_coords, y_coords, color='orange', label="Convex Hull")
     
     
 if __name__=="__main__":
-    sequence = SequenceOfBundles.load_sequence_from_file("input/input_5.txt", preprocess=True)
+    sequence = SequenceOfBundles.load_sequence_from_file("input/input_1.txt", preprocess=False)
+    
+    # Create separate instances of the polygon
     polygon = SimplePolygonFromSequenceOfBundle(sequence)
-    
-    starting_time = time.time()
     shortest_path = polygon.find_shortest_path(direction=False)
-    print("Time taken to find shortest path using 1: ", time.time() - starting_time)
     
-    starting_time_2 = time.time()
-    shortest_path_2 = SimplePolygon.find_shortest_path(polygon, direction=False)
-    print("Time taken to find shortest path using 2: ", time.time() - starting_time_2)
-    # shortest_path = SimplePolygon.find_shortest_path(polygon, direction=False)    
+    polygon2 = SimplePolygon(polyline_P=polygon.polyline_P, polyline_Q=polygon.polyline_Q)
+    shortest_path_2 = polygon2.find_shortest_path(direction=False)
     
+    starting_time_2 = time.perf_counter()
+    for _ in range(1000):
+        polygon2.find_shortest_path(direction=False)
+    ending_time_2 = time.perf_counter()
+    total_time_2 = ending_time_2  - starting_time_2
+    
+    starting_time = time.perf_counter()
+    for _ in range(1000):
+        polygon.find_shortest_path(direction=False)
+    ending_time = time.perf_counter()
+    total_time = ending_time - starting_time
+    
+    
+    print("Time taken for 1000 iterations of find_shortest_path: ", total_time)
+    print("Time taken for 1000 iterations of find_shortest_path_2: ", total_time_2)
+
     visalize_sequence(plt, sequence)
     visualize_shortest_path(plt, shortest_path)
     # visualize_simple_polygon(plt, polygon)
     
-    # Visualize the convex hull - START ---
-    filename = "convex_hull.log"
-    ## Read points and polygons from the file
-    polygons = read_convex_hull_from_file(filename)
-    ## Draw the polygons
-    draw_convex_hull(plt, polygons)
-    # Visualize the convex hull - END ---
+    # Visualize the convex hull 
+    draw_convex_hull(plt, polygon.convex_hulls)
+    
+    print("Shortest path length - improved version: ", len(shortest_path))
+    print("Shortest path length - original version: ", len(shortest_path_2))
     
     plt.xticks([])  # Remove x-axis numbers
     plt.yticks([])  # Remove y-axis numbers
