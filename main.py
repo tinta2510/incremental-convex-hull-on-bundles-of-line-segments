@@ -1,6 +1,7 @@
 from shortest_path import SimplePolygon, SequenceOfBundles, Point, SimplePolygonFromSequenceOfBundle
 import matplotlib.pyplot as plt
 import time
+import statistics
 def visalize_sequence(plt, sequence: SequenceOfBundles):
     """Visualize the sequence of bundles."""
     # Plot skeleton points
@@ -19,18 +20,18 @@ def visualize_shortest_path(plt, shortest_path: list[Point]):
     """Visualize the shortest path on the sequence of bundles."""
     shortest_path_x = [pt.x for pt in shortest_path]
     shortest_path_y = [pt.y for pt in shortest_path]
-    plt.plot(shortest_path_x, shortest_path_y, 'g-', label='Shortest Path', linewidth=2)
+    plt.plot(shortest_path_x, shortest_path_y, 'g-', label='Shortest Path', linewidth=3)
     
 def visualize_simple_polygon(plt, polygon: SimplePolygon):
     # Plot polyline P
     polyline_P_x = [pt.x for pt in polygon.polyline_P]
     polyline_P_y = [pt.y for pt in polygon.polyline_P]
-    plt.plot(polyline_P_x, polyline_P_y, 'o:', label='Polyline P', linewidth=4, color='black')
+    plt.plot(polyline_P_x, polyline_P_y, '-', label='Polyline P', linewidth=1, color='black')
     
     # Plot polyline Q
     polyline_Q_x = [pt.x for pt in polygon.polyline_Q]
     polyline_Q_y = [pt.y for pt in polygon.polyline_Q]
-    plt.plot(polyline_Q_x, polyline_Q_y, 'o:', label='Polyline Q', linewidth=4, color='gray')
+    plt.plot(polyline_Q_x, polyline_Q_y, '-', label='Polyline Q', linewidth=1, color='black')
     
 def read_convex_hull_from_file(filename):
     """
@@ -78,21 +79,24 @@ if __name__=="__main__":
     polygon2 = SimplePolygon(polyline_P=polygon.polyline_P, polyline_Q=polygon.polyline_Q)
     shortest_path_2 = polygon2.find_shortest_path(direction=False)
     
-    starting_time_2 = time.perf_counter()
-    for _ in range(1000):
-        polygon2.find_shortest_path(direction=False)
-    ending_time_2 = time.perf_counter()
-    total_time_2 = ending_time_2  - starting_time_2
+    # times2 = []
+    # for _ in range(1000):
+    #     polygon2 = SimplePolygonFromSequenceOfBundle(sequence)
+    #     starting_time_2 = time.perf_counter()
+    #     SimplePolygon.find_shortest_path(polygon2, direction=False)
+    #     ending_time_2 = time.perf_counter()
+    #     times2.append(ending_time_2  - starting_time_2)
     
-    starting_time = time.perf_counter()
-    for _ in range(1000):
-        polygon.find_shortest_path(direction=False)
-    ending_time = time.perf_counter()
-    total_time = ending_time - starting_time
-    
-    
-    print("Time taken for 1000 iterations of find_shortest_path: ", total_time)
-    print("Time taken for 1000 iterations of find_shortest_path_2: ", total_time_2)
+    # times = []
+    # for _ in range(1000):
+    #     polygon = SimplePolygonFromSequenceOfBundle(sequence)
+    #     starting_time = time.perf_counter()
+    #     polygon.find_shortest_path(direction=False)
+    #     ending_time = time.perf_counter()
+    #     times.append(ending_time - starting_time)
+        
+    # print("Time taken for 1000 iterations of find_shortest_path: ", statistics.mean(times), "Stddev: ", statistics.stdev(times))
+    # print("Time taken for 1000 iterations of find_shortest_path_2: ", statistics.mean(times2), "Stddev: ", statistics.stdev(times2))    
 
     visalize_sequence(plt, sequence)
     visualize_shortest_path(plt, shortest_path)
