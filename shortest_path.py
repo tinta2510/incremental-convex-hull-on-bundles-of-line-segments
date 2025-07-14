@@ -1,8 +1,9 @@
 import logging
 from itertools import combinations
+from functools import reduce
 from utils import (
     calculate_distance, is_larger_angle, is_equal_angle, is_left, is_left_on, 
-    calculate_angle, Point, do_intersect
+    calculate_angle, Point, do_intersect, incremental_convex_hull, extract_convex_rope_from_hull
 )
 from intervaltree import IntervalTree
                    
@@ -132,287 +133,43 @@ class SequenceOfBundles:
         
         if preprocess: sequence.preprocess() # Preprocess the sequence
         return sequence
-            
-class SimplePolygon:
-    def __init__(self, polyline_P: list[Point], polyline_Q: list[Point]):
-        if (polyline_P[0] != polyline_Q[0] or 
-            polyline_P[-1] != polyline_Q[-1]
-        ):
-            raise ValueError("Start and end point of two polylines must be the same.")
-        self.polyline_P = polyline_P
-        self.polyline_Q = polyline_Q
-        self.convex_hulls: list[list[Point]] = [] # list of convex hulls
-
-        
-    def is_inside_new_hull(self, left_tp: Point, right_tp: Point, added_pt: Point, checking_pt: Point, direction: bool):
-        """
-        Check if the dual polyline intersects with the newly extended convex hull
-        """
-        return (is_left(left_tp, added_pt, checking_pt, direction) and 
-                is_left(added_pt, right_tp, checking_pt, direction) and 
-                is_left(right_tp, left_tp, checking_pt, direction))
     
-    def verify_link(self,
-                   Xstar: list[Point], 
-                   Ystar: list[Point], 
-                   Ustar: Point, 
-                   Vstar: Point, 
-                   direction: bool
-    ):
-        for pt in Xstar:
-            if not is_left_on(Ustar, Vstar, pt, direction):
-                return False
-        for pt in Ystar:
-            if not is_left_on(Ustar, Vstar, pt, not direction):
-                return False
-        return True
-    
-    def find_link(self, Xstar, Ystar, direction):
-        for Ustar in Xstar:
-            for Vstar in Ystar:
-                if self.verify_link(Xstar, Ystar, Ustar, Vstar, direction):
-                    return Ustar, Vstar
-        return None, None
-
-    def get_tangent_line(self, tangent_polyline: list[Point], start_tp_idx: int, end_tp_idx: int):
-        if end_tp_idx < start_tp_idx:
-            return tangent_polyline[start_tp_idx:] + tangent_polyline[1:end_tp_idx+1]
-        else: 
-            return tangent_polyline[start_tp_idx:end_tp_idx+1]
-        
-    def find_tangent_points(self, tangent_polyline, added_pt, direction):
-        left_tp_idx = len(tangent_polyline) - 1
-        while left_tp_idx > 0 and not is_left(
-                tangent_polyline[left_tp_idx-1], 
-                tangent_polyline[left_tp_idx], 
-                added_pt, 
-                direction
-            ):
-            left_tp_idx = left_tp_idx - 1
-        right_tp_idx = 0
-        while right_tp_idx < len(tangent_polyline)-1 and not is_left(
-                added_pt, 
-                tangent_polyline[right_tp_idx], 
-                tangent_polyline[right_tp_idx+1], 
-                direction
-            ):
-            right_tp_idx = right_tp_idx + 1
-        return left_tp_idx, right_tp_idx
-
-    def find_left_tangent_point(self, tangent_polyline, added_pt, direction):
-        left_tp_idx = len(tangent_polyline) - 1
-        while left_tp_idx > 0 and not is_left(
-                tangent_polyline[left_tp_idx-1], 
-                tangent_polyline[left_tp_idx], 
-                added_pt, 
-                direction
-            ):
-            left_tp_idx = left_tp_idx - 1
-        return left_tp_idx
-        
-    def find_shortest_path(self, direction: bool =  True):
-        count = 0
-        shortest_path = []
-        start_index = 0
-        checking_pt_index = 0
-        curr_polyline = self.polyline_P if direction else self.polyline_Q
-        while True:
-            dual_polyline = (self.polyline_Q  
-                             if curr_polyline == self.polyline_P 
-                             else self.polyline_P)
-            tangent_polyline = []                 
-
-            if curr_polyline[start_index] == self.polyline_P[-1]:
-                shortest_path += [curr_polyline[start_index]]
-                return shortest_path
-            elif curr_polyline[start_index+1] == self.polyline_P[-1]:
-                shortest_path += [curr_polyline[start_index], curr_polyline[start_index+1]]
-                return shortest_path
-            
-            # Initialize the tangent polyline
-            tangent_polyline.append(curr_polyline[start_index])
-            tangent_polyline.append(curr_polyline[start_index+1])
-
-            # Increment the convex hull
-            for i in range(start_index+2, len(curr_polyline)):
-                added_pt = curr_polyline[i]
-
-                # Find the tangent points
-                left_tp_idx = self.find_left_tangent_point(tangent_polyline, added_pt, direction)
-                
-                # # Check intersection
-                count += 1
-                Ystar = []
-                intersection = False
-                for prev_pt, pt in zip(dual_polyline[checking_pt_index:], dual_polyline[checking_pt_index+1:]):
-                    if (not is_left(prev_pt, tangent_polyline[left_tp_idx], added_pt, direction) and
-                        is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
-                        do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) 
-                    ):
-                        intersection = True
-                        Ystar.append(pt)
-                    elif (is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and intersection):
-                        Ystar.append(pt)
-                    elif (not is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
-                        do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) ):
-                        intersection = False
-                
-                if len(Ystar) != 0:
-                    # Find link
-                    Xstar = tangent_polyline[left_tp_idx:] 
-                    Ustar, Vstar = self.find_link(Xstar, Ystar, direction)
-                    if not Ustar:
-                        raise Exception("Cannot find link [u*, v*]")
-                    
-                    Ustar_idx = tangent_polyline.index(Ustar)
-                    shortest_path += tangent_polyline[:Ustar_idx+1]
-                    
-                    start_index = dual_polyline.index(Vstar)
-                    checking_pt_index = Ustar_idx
-                    curr_polyline = dual_polyline
-                    direction = not direction
-                    break
-                
-                # No intersection
-                tangent_polyline = tangent_polyline[:left_tp_idx+1]
-                tangent_polyline.append(added_pt)
-                if added_pt == self.polyline_P[-1]:
-                    print("Reach goal")
-                    shortest_path += tangent_polyline
-                    self.convex_hulls.append(tangent_polyline)
-                    print("Count original version: ", count)
-                    return shortest_path
-            self.convex_hulls.append(tangent_polyline) # For illustration only
-            
-class SimplePolygonFromSequenceOfBundle(SimplePolygon):
-    '''
-    Class for representing a simple polygon constructed from a sequence of 
-    bundles of line segments
-    '''
-    def __init__(self, sequence: SequenceOfBundles):
-        polyline_P = [sequence.skeleton[0]]
-        polyline_Q = [sequence.skeleton[0]]
-        
-        vertex_on_P = True
-        partitions_of_P = [-1]
-        partitions_of_Q = [-1]
-        label = 0
-        for i, vertex in enumerate(sequence.skeleton[1:-1], start=1):
-            # WARNING: Not degenerate bundles
-            if sequence.outer_endpoints[i] == []: 
-                polyline_P.append(vertex)
-                polyline_Q.append(vertex)
-                continue
-            if is_left(sequence.skeleton[i-1], 
-                       vertex,
-                       sequence.outer_endpoints[i][0]
-            ): 
-                if vertex_on_P:
-                    label += 1
-                    vertex_on_P = False
-                polyline_Q.append(vertex)
-                partitions_of_Q.append(-1)
-                for outer_pt in sequence.outer_endpoints[i]:
-                    polyline_P.append(outer_pt)
-                    partitions_of_P.append(label)
+    def _partition_into_convex_subpolylines(self) -> list[list[int]]:
+        convex_ropes = []
+        curr_rope = [0, 1, 2]
+        left_flag = is_left_on(self.skeleton[0], self.skeleton[1], self.skeleton[2])
+        for i in range(3, len(self.skeleton)):
+            # Check if the current point is on the left or right of the previous segment
+            direction = is_left_on(self.skeleton[i-1], self.skeleton[i], self.skeleton[i-2])
+            if direction == left_flag:
+                curr_rope.append(i)
             else:
-                if not vertex_on_P:
-                    label += 1
-                    vertex_on_P = True
-                polyline_P.append(vertex)
-                partitions_of_P.append(-1)
-                for outer_pt in sequence.outer_endpoints[i]:
-                    polyline_Q.append(outer_pt)
-                    partitions_of_Q.append(label)
-        # Add the last vertex
-        polyline_P.append(sequence.skeleton[-1])
-        polyline_Q.append(sequence.skeleton[-1])
-        partitions_of_P.append(-1)
-        partitions_of_Q.append(-1)
-        super().__init__(polyline_P, polyline_Q)
-        self.sequence = sequence
-        self.partitions_of_P = partitions_of_P
-        self.partitions_of_Q = partitions_of_Q
+                convex_ropes.append(curr_rope)
+                curr_rope = [i-2, i-1, i]
+                left_flag = direction
+        return convex_ropes
     
-    def find_shortest_path(self, direction: bool =  True):
-        count = 0
-        print("Improved version")
+    def find_shortest_path(self) -> list[Point]:
+        """
+        Find the shortest path in the sequence of bundles by concatenating local convex hulls.
+        
+        :return: List of Point objects representing the shortest path.
+        """
+        convex_ropes = self._partition_into_convex_subpolylines()
         shortest_path = []
-        start_index = 0
-        checking_pt_index = 0
-        curr_polyline = self.polyline_P if direction else self.polyline_Q
-        while True:
-            dual_polyline = (self.polyline_Q  
-                             if curr_polyline == self.polyline_P 
-                             else self.polyline_P)
-            tangent_polyline = []                 
-
-            if curr_polyline[start_index] == self.polyline_P[-1]:
-                shortest_path += [curr_polyline[start_index]]
-                return shortest_path
-            elif curr_polyline[start_index+1] == self.polyline_P[-1]:
-                shortest_path += [curr_polyline[start_index], curr_polyline[start_index+1]]
-                return shortest_path
+        local_CHs = []
+        for rope in convex_ropes:
+            endpoints = reduce(lambda acc, ele: acc + ele, 
+                               [self.outer_endpoints[i] for i in rope[1:-1]], [])
+            convex_hull = incremental_convex_hull(endpoints)
+            convex_rope = extract_convex_rope_from_hull(
+                convex_hull, self.skeleton[rope[0]], self.skeleton[rope[-1]], 
+                clockwise=not is_left_on(self.skeleton[rope[0]], self.skeleton[rope[1]], self.skeleton[rope[2]])
+            )
+            local_CHs.append(convex_rope)
             
-            # Initialize the tangent polyline
-            tangent_polyline.append(curr_polyline[start_index])
-            tangent_polyline.append(curr_polyline[start_index+1])
-
-            starting_partition = (self.partitions_of_P[start_index+1] 
-                                if curr_polyline == self.polyline_P 
-                                else self.partitions_of_Q[start_index+1])
-            # Increment the convex hull
-            for i in range(start_index+2, len(curr_polyline)):
-                added_pt = curr_polyline[i]
-
-                # Find the tangent points
-                left_tp_idx = self.find_left_tangent_point(tangent_polyline, added_pt, direction)
-                
-                partition_of_added_pt = (self.partitions_of_P[i] 
-                                    if curr_polyline == self.polyline_P 
-                                    else self.partitions_of_Q[i])
-                #Check intersection
-                if partition_of_added_pt != starting_partition or starting_partition == -1:
-                    count += 1 # test
-                    Ystar = []
-                    intersection = False
-                    for prev_pt, pt in zip(dual_polyline[checking_pt_index:], dual_polyline[checking_pt_index+1:]):
-                        if (not is_left(prev_pt, tangent_polyline[left_tp_idx], added_pt, direction) and
-                            is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
-                            do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) 
-                        ):
-                            intersection = True
-                            Ystar.append(pt)
-                        elif (is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and intersection):
-                            Ystar.append(pt)
-                        elif (not is_left(pt, tangent_polyline[left_tp_idx], added_pt, direction) and
-                            do_intersect(prev_pt, pt, tangent_polyline[left_tp_idx], added_pt) ):
-                            intersection = False
-                    
-                    if len(Ystar) != 0:
-                        # Find link
-                        Xstar = tangent_polyline[left_tp_idx:] 
-                        Ustar, Vstar = self.find_link(Xstar, Ystar, direction)
-                        if not Ustar:
-                            raise Exception("Cannot find link [u*, v*]")
-                        
-                        Ustar_idx = tangent_polyline.index(Ustar)
-                        shortest_path += tangent_polyline[:Ustar_idx+1]
-                        
-                        start_index = dual_polyline.index(Vstar)
-                        checking_pt_index = Ustar_idx
-                        curr_polyline = dual_polyline
-                        direction = not direction
-                        break
-                
-                # No intersection
-                tangent_polyline = tangent_polyline[:left_tp_idx+1]
-                tangent_polyline.append(added_pt)
-                if added_pt == self.polyline_P[-1]:
-                    print("Reach goal")
-                    shortest_path += tangent_polyline
-                    self.convex_hulls.append(tangent_polyline)
-                    print("Count improved version: ", count)
-                    return shortest_path
-            self.convex_hulls.append(tangent_polyline) # For illustration only
+        for i in range(len(local_CHs)):
             
+        return shortest_path
+        
+        
