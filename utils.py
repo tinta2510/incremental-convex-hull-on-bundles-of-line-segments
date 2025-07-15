@@ -261,17 +261,23 @@ class ConvexHull:
                 
             # If no changes were made, we found the tangent
             if not changed:
-                if (external and
-                    not (orientation(poly1[prev_i], poly1[i], poly2[j]) 
-                         == orientation(poly1[prev_i], poly1[i], poly1[next_i]))):
-                    i = next_i
-                    j = prev_j
-                elif (not external and
-                      not (orientation(poly1[prev_i], poly1[i], poly2[j]) 
-                           == orientation(poly1[prev_i], poly1[i], poly1[next_i]))):
-                    i = next_i
-                    j = prev_j
-                else:
-                    break
+                if external:
+                    if ((orientation(poly1[prev_i], poly1[i], poly2[j]) 
+                         != orientation(poly1[prev_i], poly1[i], poly1[next_i]))
+                        or (orientation(poly1[prev_i], poly1[i], poly2[j])
+                            != orientation(poly1[i], poly2[j], poly2[next_j]))):
+                        i = next_i
+                        j = prev_j
+                    else:
+                        break
+                else: 
+                    if ((orientation(poly1[prev_i], poly1[i], poly2[j]) 
+                         != orientation(poly1[prev_i], poly1[i], poly1[next_i]))
+                        or (orientation(poly1[prev_i], poly1[i], poly2[j])
+                            == orientation(poly1[i], poly2[j], poly2[next_j]))):
+                        i = next_i
+                        j = prev_j
+                    else:
+                        break
         
         return (poly1[i], poly2[j])

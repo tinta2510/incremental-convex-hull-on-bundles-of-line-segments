@@ -157,7 +157,7 @@ class SequenceOfBundles:
         :return: List of Point objects representing the shortest path.
         """
         convex_ropes = self._partition_into_convex_subpolylines()
-        shortest_path = []
+        shortest_path = [self.skeleton[0]]  # Start with the first skeleton point
         local_CHs = []
         for rope in convex_ropes:
             endpoints = ([self.skeleton[rope[0]]] 
@@ -184,17 +184,16 @@ class SequenceOfBundles:
         #             shortest_path.append() #!!!
 
         #     else:
-        while len(local_CHs) > 1:
+        while len(local_CHs) > 2:
             link1 = ConvexHull.find_tangent(local_CHs[0], local_CHs[1])
             link2 = ConvexHull.find_tangent(local_CHs[1], local_CHs[2])
             if do_intersect(link1[0], link1[1], link2[0], link2[1]):
                 # Check if the two segments have one same endpoint
                 if link1[1] == link2[0]:
                     #!!! Handle later
-                    start_pt = local_CHs[0][0] if len(shortest_path) == 0 else shortest_path[-1]
                     shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
-                        local_CHs[0], start_pt, link1[0], 
-                        clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                        local_CHs[0], shortest_path[-1], link1[0], 
+                        # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
                     )[1:])
                     local_CHs.pop(0)
                     shortest_path.append(link1[1])
@@ -203,22 +202,37 @@ class SequenceOfBundles:
                     link = ConvexHull.find_tangent(local_CHs[0], local_CHs[2], external=True)
                     new_hull =  ConvexHull.extract_convex_rope_from_hull(
                         local_CHs[0], local_CHs[0][0], link[0], 
-                        clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                        # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
                     ) + ConvexHull.extract_convex_rope_from_hull(
                         local_CHs[2], link[1], local_CHs[2][-1], 
-                        clockwise=not is_left_on(local_CHs[2][0], local_CHs[2][1], local_CHs[2][2])
+                        # clockwise=not is_left_on(local_CHs[2][0], local_CHs[2][1], local_CHs[2][2])
                     )
                     [local_CHs.pop(0) for _ in range(3)]
                     local_CHs.insert(0, new_hull)
             else:
-                start_pt = local_CHs[0][0] if len(shortest_path) == 0 else shortest_path[-1]
                 shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
-                    local_CHs[0], start_pt, link1[0], 
-                    clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                    local_CHs[0], shortest_path[-1], link1[0], 
+                    # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
                 )[1:])
                 local_CHs.pop(0)
                 shortest_path.append(link1[1])
-            
+                
+        if len(local_CHs) == 2:
+            link1 = ConvexHull.find_tangent(local_CHs[0], local_CHs[1])
+            shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
+                local_CHs[0], shortest_path[-1], link1[0], 
+                # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+            )[1:])
+            shortest_path.append(link1[1])
+            shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
+                local_CHs[1], shortest_path[-1], local_CHs[1][-1], 
+                # clockwise=not is_left_on(local_CHs[1][0], local_CHs[1][1], local_CHs[1][2])
+            )[1:])
+        else:           
+            shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
+                                    local_CHs[0], shortest_path[-1], local_CHs[0][-1], 
+                                    # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                                )[1:])
         return shortest_path
         
         
