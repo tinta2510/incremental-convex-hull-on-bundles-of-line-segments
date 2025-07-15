@@ -3,7 +3,7 @@ from itertools import combinations
 from functools import reduce
 from utils import (
     calculate_distance, is_larger_angle, is_equal_angle, is_left, is_left_on, 
-    calculate_angle, Point, do_intersect, incremental_convex_hull, extract_convex_rope_from_hull
+    calculate_angle, Point, do_intersect, ConvexHull
 )
 from intervaltree import IntervalTree
                    
@@ -147,6 +147,7 @@ class SequenceOfBundles:
                 convex_ropes.append(curr_rope)
                 curr_rope = [i-2, i-1, i]
                 left_flag = direction
+        convex_ropes.append(curr_rope)  # Add the last rope
         return convex_ropes
     
     def find_shortest_path(self) -> list[Point]:
@@ -159,16 +160,64 @@ class SequenceOfBundles:
         shortest_path = []
         local_CHs = []
         for rope in convex_ropes:
-            endpoints = reduce(lambda acc, ele: acc + ele, 
-                               [self.outer_endpoints[i] for i in rope[1:-1]], [])
-            convex_hull = incremental_convex_hull(endpoints)
-            convex_rope = extract_convex_rope_from_hull(
+            endpoints = ([self.skeleton[rope[0]]] 
+                        + reduce(lambda acc, ele: acc + ele, 
+                                 [self.outer_endpoints[i] for i in rope[1:-1]], []) 
+                        + [self.skeleton[rope[-1]]] )
+            convex_hull = ConvexHull.incremental_convex_hull(endpoints)
+            clockwise = not is_left_on(self.skeleton[rope[0]], self.skeleton[rope[1]], self.skeleton[rope[2]])
+            convex_rope = ConvexHull.extract_convex_rope_from_hull(
                 convex_hull, self.skeleton[rope[0]], self.skeleton[rope[-1]], 
-                clockwise=not is_left_on(self.skeleton[rope[0]], self.skeleton[rope[1]], self.skeleton[rope[2]])
+                clockwise=clockwise
             )
             local_CHs.append(convex_rope)
             
-        for i in range(len(local_CHs)):
+        # for i in range(len(local_CHs)-2):
+        #     link1 = ConvexHull.find_tangent(local_CHs[i], local_CHs[i+1])
+        #     link2 = ConvexHull.find_tangent(local_CHs[i+1], local_CHs[i+2])
+        #     if do_intersect(link1[0], link1[1], link2[0], link2[1]):
+        #         #!!! Check case two segments have one same endpoint
+        #         if link1[1] == link2[0]:
+        #             raise NotImplementedError("The case where two segments have one same endpoint is not implemented yet.")
+        #         else:
+        #             link = ConvexHull.find_tangent(local_CHs[i], local_CHs[i+2], external=True)
+        #             shortest_path.append() #!!!
+
+        #     else:
+        while len(local_CHs) > 1:
+            link1 = ConvexHull.find_tangent(local_CHs[0], local_CHs[1])
+            link2 = ConvexHull.find_tangent(local_CHs[1], local_CHs[2])
+            if do_intersect(link1[0], link1[1], link2[0], link2[1]):
+                # Check if the two segments have one same endpoint
+                if link1[1] == link2[0]:
+                    #!!! Handle later
+                    start_pt = local_CHs[0][0] if len(shortest_path) == 0 else shortest_path[-1]
+                    shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
+                        local_CHs[0], start_pt, link1[0], 
+                        clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                    )[1:])
+                    local_CHs.pop(0)
+                    shortest_path.append(link1[1])
+                else:
+                    # Find the external tangent between the first and third convex ropes
+                    link = ConvexHull.find_tangent(local_CHs[0], local_CHs[2], external=True)
+                    new_hull =  ConvexHull.extract_convex_rope_from_hull(
+                        local_CHs[0], local_CHs[0][0], link[0], 
+                        clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                    ) + ConvexHull.extract_convex_rope_from_hull(
+                        local_CHs[2], link[1], local_CHs[2][-1], 
+                        clockwise=not is_left_on(local_CHs[2][0], local_CHs[2][1], local_CHs[2][2])
+                    )
+                    [local_CHs.pop(0) for _ in range(3)]
+                    local_CHs.insert(0, new_hull)
+            else:
+                start_pt = local_CHs[0][0] if len(shortest_path) == 0 else shortest_path[-1]
+                shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
+                    local_CHs[0], start_pt, link1[0], 
+                    clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                )[1:])
+                local_CHs.pop(0)
+                shortest_path.append(link1[1])
             
         return shortest_path
         

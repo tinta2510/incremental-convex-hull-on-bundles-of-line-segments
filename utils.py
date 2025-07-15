@@ -32,10 +32,6 @@ class Point:
     
     def __truediv__(self, scalar: float) -> 'Point':
         return Point(self.x / scalar, self.y / scalar)
-    
-    def __hash__(self):
-        # Combine the hash of x and y to create a unique hash for each Point
-        return hash((self.x, self.y))
 
     def __ne__(self, other):
         # Negate the result of __eq__
@@ -148,24 +144,45 @@ class ConvexHull:
     @staticmethod
     def incremental_convex_hull(points: list[Point]) -> list[Point]:
         """
-        Computes the convex hull of a set of points using the incremental algorithm.
+        Computes the convex hull of a set of points using the monotone chain algorithm (Andrew's algorithm).
         Returns the vertices of the convex hull in counterclockwise order.
+        Time complexity: O(n log n)
         """
         if len(points) < 3:
             return points  # Convex hull is not defined for less than 3 points
 
+        # Remove duplicate points
+        unique_points = list(set(points))
+        if len(unique_points) < 3:
+            return unique_points
+
         # Sort points lexicographically (by x, then by y)
-        points = sorted(points, key=lambda p: (p.x, p.y))
-
-        # Initialize the hull with the first three points
-        hull = [points[0], points[1], points[2]]
-
-        for p in points[3:]:
-            while len(hull) > 1 and orientation(hull[-2], hull[-1], p) != -1:
-                hull.pop()  # Remove last point if it does not maintain counterclockwise orientation
-            hull.append(p)
-
-        return hull
+        sorted_points = sorted(unique_points, key=lambda p: (p.x, p.y))
+        
+        # Build lower hull
+        lower = []
+        for p in sorted_points:
+            # Remove points that make a clockwise turn (or collinear)
+            while len(lower) >= 2 and orientation(lower[-2], lower[-1], p) != -1:
+                lower.pop()
+            lower.append(p)
+        
+        # Build upper hull
+        upper = []
+        for p in reversed(sorted_points):
+            # Remove points that make a clockwise turn (or collinear)
+            while len(upper) >= 2 and orientation(upper[-2], upper[-1], p) != -1:
+                upper.pop()
+            upper.append(p)
+        
+        # Remove the last point of each half because it's repeated
+        # The last point of lower is the first point of upper and vice versa
+        lower.pop()
+        upper.pop()
+        
+        # Combine lower and upper hull to get the complete convex hull
+        # Return in counterclockwise order
+        return lower + upper
 
     @staticmethod
     def extract_convex_rope_from_hull(hull: list[Point], start_pt: Point, end_pt: Point, clockwise: bool = True) -> list[Point]:
@@ -188,12 +205,12 @@ class ConvexHull:
             if start_index > end_index:
                 return hull[end_index:start_index + 1][::-1]
             else:
-                return hull[end_index:] + hull[:start_index + 1][::-1]
+                return list(reversed(hull[end_index:] + hull[:start_index + 1]))
             
     @staticmethod
     def find_tangent(poly1: list[Point], poly2: list[Point], external=False) -> tuple[Point, Point]:
         """
-        Finds the internal tangent between two convex hulls.
+        Finds the tangent between two convex hulls (assumes clockwise orientation).
         Connects the leftmost possible point of poly1 to the rightmost possible point of poly2.
         Returns the points of tangency as (point_on_poly1, point_on_poly2).
         """
@@ -220,32 +237,41 @@ class ConvexHull:
         i = find_leftmost_point(poly1)
         j = find_rightmost_point(poly2)
         
-        # Iteratively adjust to find the internal tangent
+        # Iteratively adjust to find the tangent
         while True:
             changed = False
             
-            # Check if we need to move on poly1 to maintain internal tangent
-            # We want all other points of poly1 to be on the "outside" (right side) of the tangent line
+            # For poly1 (clockwise): check adjacent points
             prev_i = prev_index(i, n1)
             next_i = next_index(i, n1)
             
-            # Check if previous point is on the wrong side (inside)
-            if is_left(poly1[i], poly2[j], poly1[prev_i]) != is_left(poly1[i], poly2[j], poly1[next_i]):
+            # External tangent: both polygons on same side of tangent line
+            # For clockwise poly1, move to maintain all points on right side
+            if orientation(poly1[i], poly2[j], poly1[prev_i]) != orientation(poly1[i], poly2[j], poly1[next_i]):  # prev point on left (wrong side)
                 i = next_i
                 changed = True
             
-            # Check if we need to move on poly2 to maintain internal tangent
-            # We want all other points of poly2 to be on the "outside" (left side) of the tangent line
+            # For poly2 (clockwise): check adjacent points
             prev_j = prev_index(j, n2)
             next_j = next_index(j, n2)
-            
-            # Check if previous point is on the wrong side (inside)
-            if is_left(poly1[i], poly2[j], poly2[prev_j]) != is_left(poly1[i], poly2[j], poly2[next_j]):
-                j = next_j if external else prev_j
+
+            if orientation(poly1[i], poly2[j], poly2[prev_j]) != orientation(poly1[i], poly2[j], poly2[next_j]):  # prev point on left (wrong side)
+                j = prev_j
                 changed = True
-            
+                
             # If no changes were made, we found the tangent
             if not changed:
-                break
+                if (external and
+                    not (orientation(poly1[prev_i], poly1[i], poly2[j]) 
+                         == orientation(poly1[prev_i], poly1[i], poly1[next_i]))):
+                    i = next_i
+                    j = prev_j
+                elif (not external and
+                      not (orientation(poly1[prev_i], poly1[i], poly2[j]) 
+                           == orientation(poly1[prev_i], poly1[i], poly1[next_i]))):
+                    i = next_i
+                    j = prev_j
+                else:
+                    break
         
         return (poly1[i], poly2[j])

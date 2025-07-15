@@ -1,4 +1,4 @@
-from shortest_path import SimplePolygon, SequenceOfBundles, Point, SimplePolygonFromSequenceOfBundle
+from shortest_path import SequenceOfBundles, Point
 import matplotlib.pyplot as plt
 import time
 import statistics
@@ -22,16 +22,16 @@ def visualize_shortest_path(plt, shortest_path: list[Point]):
     shortest_path_y = [pt.y for pt in shortest_path]
     plt.plot(shortest_path_x, shortest_path_y, 'g-', label='Shortest Path', linewidth=3)
     
-def visualize_simple_polygon(plt, polygon: SimplePolygon):
-    # Plot polyline P
-    polyline_P_x = [pt.x for pt in polygon.polyline_P]
-    polyline_P_y = [pt.y for pt in polygon.polyline_P]
-    plt.plot(polyline_P_x, polyline_P_y, '-', label='Polyline P', linewidth=1, color='black')
+# def visualize_simple_polygon(plt, polygon: SimplePolygon):
+#     # Plot polyline P
+#     polyline_P_x = [pt.x for pt in polygon.polyline_P]
+#     polyline_P_y = [pt.y for pt in polygon.polyline_P]
+#     plt.plot(polyline_P_x, polyline_P_y, '-', label='Polyline P', linewidth=1, color='black')
     
-    # Plot polyline Q
-    polyline_Q_x = [pt.x for pt in polygon.polyline_Q]
-    polyline_Q_y = [pt.y for pt in polygon.polyline_Q]
-    plt.plot(polyline_Q_x, polyline_Q_y, '-', label='Polyline Q', linewidth=1, color='black')
+#     # Plot polyline Q
+#     polyline_Q_x = [pt.x for pt in polygon.polyline_Q]
+#     polyline_Q_y = [pt.y for pt in polygon.polyline_Q]
+#     plt.plot(polyline_Q_x, polyline_Q_y, '-', label='Polyline Q', linewidth=1, color='black')
     
 def read_convex_hull_from_file(filename):
     """
@@ -70,15 +70,11 @@ def draw_convex_hull(plt, polygons):
     
     
 if __name__=="__main__":
-    sequence = SequenceOfBundles.load_sequence_from_file("input/input_1.txt", preprocess=False)
+    sequence = SequenceOfBundles.load_sequence_from_file("input/input_2.txt", preprocess=False)
     
     # Create separate instances of the polygon
-    polygon = SimplePolygonFromSequenceOfBundle(sequence)
-    shortest_path = polygon.find_shortest_path(direction=False)
-    
-    polygon2 = SimplePolygon(polyline_P=polygon.polyline_P, polyline_Q=polygon.polyline_Q)
-    shortest_path_2 = polygon2.find_shortest_path(direction=False)
-    
+    shortest_path = sequence.find_shortest_path()
+
     # times2 = []
     # for _ in range(1000):
     #     polygon2 = SimplePolygonFromSequenceOfBundle(sequence)
@@ -103,10 +99,10 @@ if __name__=="__main__":
     # visualize_simple_polygon(plt, polygon)
     
     # Visualize the convex hull 
-    draw_convex_hull(plt, polygon.convex_hulls)
+    # draw_convex_hull(plt, polygon.convex_hulls)
     
-    print("Shortest path length - improved version: ", len(shortest_path))
-    print("Shortest path length - original version: ", len(shortest_path_2))
+    # print("Shortest path length - improved version: ", len(shortest_path))
+    # print("Shortest path length - original version: ", len(shortest_path_2))
     
     plt.xticks([])  # Remove x-axis numbers
     plt.yticks([])  # Remove y-axis numbers
