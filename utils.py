@@ -197,12 +197,12 @@ class ConvexHull:
         end_index = hull.index(end_pt)
 
         if clockwise:
-            if start_index < end_index:
+            if start_index <= end_index:
                 return hull[start_index:end_index + 1]
             else:
                 return hull[start_index:] + hull[:end_index + 1]
         else:
-            if start_index > end_index:
+            if start_index >= end_index:
                 return hull[end_index:start_index + 1][::-1]
             else:
                 return list(reversed(hull[end_index:] + hull[:start_index + 1]))
@@ -245,39 +245,44 @@ class ConvexHull:
             prev_i = prev_index(i, n1)
             next_i = next_index(i, n1)
             
-            # External tangent: both polygons on same side of tangent line
-            # For clockwise poly1, move to maintain all points on right side
-            if orientation(poly1[i], poly2[j], poly1[prev_i]) != orientation(poly1[i], poly2[j], poly1[next_i]):  # prev point on left (wrong side)
-                i = next_i
-                changed = True
-            
-            # For poly2 (clockwise): check adjacent points
             prev_j = prev_index(j, n2)
             next_j = next_index(j, n2)
-
-            if orientation(poly1[i], poly2[j], poly2[prev_j]) != orientation(poly1[i], poly2[j], poly2[next_j]):  # prev point on left (wrong side)
-                j = prev_j
-                changed = True
-                
-            # If no changes were made, we found the tangent
-            if not changed:
+            
+            def break_tangent_condition() -> bool:
                 if external:
                     if ((orientation(poly1[prev_i], poly1[i], poly2[j]) 
                          != orientation(poly1[prev_i], poly1[i], poly1[next_i]))
                         or (orientation(poly1[prev_i], poly1[i], poly2[j])
                             != orientation(poly1[i], poly2[j], poly2[next_j]))):
-                        i = next_i
-                        j = prev_j
-                    else:
-                        break
+                        return True
                 else: 
                     if ((orientation(poly1[prev_i], poly1[i], poly2[j]) 
                          != orientation(poly1[prev_i], poly1[i], poly1[next_i]))
                         or (orientation(poly1[prev_i], poly1[i], poly2[j])
                             == orientation(poly1[i], poly2[j], poly2[next_j]))):
-                        i = next_i
-                        j = prev_j
-                    else:
-                        break
+                        return True
+                return False
+
+            
+            # External tangent: both polygons on same side of tangent line
+            # For clockwise poly1, move to maintain all points on right side
+            if (orientation(poly1[i], poly2[j], poly1[prev_i]) != orientation(poly1[i], poly2[j], poly1[next_i]) 
+                or break_tangent_condition()
+            ):  # prev point on left (wrong side)
+                i = next_i
+                changed = True
+            
+            # For poly2 (clockwise): check adjacent points
+
+
+            if (orientation(poly1[i], poly2[j], poly2[prev_j]) != orientation(poly1[i], poly2[j], poly2[next_j])
+                or break_tangent_condition()
+            ):  # prev point on left (wrong side)
+                j = prev_j
+                changed = True
+                
+            # If no changes were made, we found the tangent
+            if not changed:                
+                break
         
         return (poly1[i], poly2[j])
