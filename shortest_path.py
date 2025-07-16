@@ -3,7 +3,7 @@ from itertools import combinations
 from functools import reduce
 from utils import (
     calculate_distance, is_larger_angle, is_equal_angle, is_left, is_left_on, 
-    calculate_angle, Point, do_intersect, ConvexHull
+    calculate_angle, Point, do_intersect, ConvexHull, orientation
 )
 from intervaltree import IntervalTree
                    
@@ -190,13 +190,25 @@ class SequenceOfBundles:
             if do_intersect(link1[0], link1[1], link2[0], link2[1]):
                 # Check if the two segments have one same endpoint
                 if link1[1] == link2[0]:
-                    #!!! Handle later
-                    shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
-                        local_CHs[0], shortest_path[-1], link1[0], 
-                        # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
-                    )[1:])
-                    local_CHs.pop(0)
-                    shortest_path.append(link1[1])
+                    if orientation(link1[0], link1[1], link2[1]) == orientation(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2]):
+                        # Find the external tangent between the first and third convex ropes
+                        link = ConvexHull.find_tangent(local_CHs[0], local_CHs[2], external=True)
+                        new_hull =  ConvexHull.extract_convex_rope_from_hull(
+                            local_CHs[0], local_CHs[0][0], link[0], 
+                            # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                        ) + ConvexHull.extract_convex_rope_from_hull(
+                            local_CHs[2], link[1], local_CHs[2][-1], 
+                            # clockwise=not is_left_on(local_CHs[2][0], local_CHs[2][1], local_CHs[2][2])
+                        )
+                        [local_CHs.pop(0) for _ in range(3)]
+                        local_CHs.insert(0, new_hull)
+                    else:
+                        shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
+                            local_CHs[0], shortest_path[-1], link1[0], 
+                            # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
+                        )[1:])
+                        local_CHs.pop(0)
+                        shortest_path.append(link1[1])
                 else:
                     # Find the external tangent between the first and third convex ropes
                     link = ConvexHull.find_tangent(local_CHs[0], local_CHs[2], external=True)
