@@ -70,7 +70,7 @@ def draw_convex_hull(plt, polygons):
     
     
 if __name__=="__main__":
-    sequence = SequenceOfBundles.load_sequence_from_file("input/input_8.txt", preprocess=False)
+    sequence = SequenceOfBundles.load_sequence_from_file("input/input_2.txt", preprocess=False)
     
     # Create separate instances of the polygon
     shortest_path = sequence.find_shortest_path()

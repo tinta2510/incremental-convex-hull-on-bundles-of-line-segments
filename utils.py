@@ -208,7 +208,7 @@ class ConvexHull:
                 return list(reversed(hull[end_index:] + hull[:start_index + 1]))
             
     @staticmethod
-    def find_tangent(poly1: list[Point], poly2: list[Point], external=False) -> tuple[Point, Point]:
+    def find_tangent(poly1: list[Point], poly2: list[Point]) -> tuple[Point, Point]:
         """
         Finds the tangent between two convex hulls (assumes clockwise orientation).
         Connects the leftmost possible point of poly1 to the rightmost possible point of poly2.

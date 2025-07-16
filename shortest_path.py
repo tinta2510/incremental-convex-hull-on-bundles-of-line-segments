@@ -189,29 +189,9 @@ class SequenceOfBundles:
             link2 = ConvexHull.find_tangent(local_CHs[1], local_CHs[2])
             if do_intersect(link1[0], link1[1], link2[0], link2[1]):
                 # Check if the two segments have one same endpoint
-                if link1[1] == link2[0]:
-                    if orientation(link1[0], link1[1], link2[1]) == orientation(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2]):
-                        # Find the external tangent between the first and third convex ropes
-                        link = ConvexHull.find_tangent(local_CHs[0], local_CHs[2], external=True)
-                        new_hull =  ConvexHull.extract_convex_rope_from_hull(
-                            local_CHs[0], local_CHs[0][0], link[0], 
-                            # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
-                        ) + ConvexHull.extract_convex_rope_from_hull(
-                            local_CHs[2], link[1], local_CHs[2][-1], 
-                            # clockwise=not is_left_on(local_CHs[2][0], local_CHs[2][1], local_CHs[2][2])
-                        )
-                        [local_CHs.pop(0) for _ in range(3)]
-                        local_CHs.insert(0, new_hull)
-                    else:
-                        shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
-                            local_CHs[0], shortest_path[-1], link1[0], 
-                            # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
-                        )[1:])
-                        local_CHs.pop(0)
-                        shortest_path.append(link1[1])
-                else:
+                if link1[1] != link2[0] or orientation(link1[0], link1[1], link2[1]) == orientation(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2]):
                     # Find the external tangent between the first and third convex ropes
-                    link = ConvexHull.find_tangent(local_CHs[0], local_CHs[2], external=True)
+                    link = ConvexHull.find_tangent(local_CHs[0], local_CHs[2])
                     new_hull =  ConvexHull.extract_convex_rope_from_hull(
                         local_CHs[0], local_CHs[0][0], link[0], 
                         # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
@@ -219,31 +199,42 @@ class SequenceOfBundles:
                         local_CHs[2], link[1], local_CHs[2][-1], 
                         # clockwise=not is_left_on(local_CHs[2][0], local_CHs[2][1], local_CHs[2][2])
                     )
+                    
+                    new_hull2 = None
+                    if len(local_CHs) >= 3:
+                        link2 = ConvexHull.find_tangent(local_CHs[1], local_CHs[3])
+                        new_hull2 = ConvexHull.extract_convex_rope_from_hull(
+                            local_CHs[1], local_CHs[1][0], link2[0], 
+                            # clockwise=not is_left_on(local_CHs[1][0], local_CHs[1][1], local_CHs[1][2])
+                        ) + ConvexHull.extract_convex_rope_from_hull(
+                            local_CHs[3], link2[1], local_CHs[3][-1], 
+                            # clockwise=not is_left_on(local_CHs[3][0], local_CHs[3][1], local_CHs[3][2])
+                        )
+                        
                     [local_CHs.pop(0) for _ in range(3)]
+                    if new_hull2 is not None:
+                        local_CHs.pop(0)
+                        local_CHs.insert(0, new_hull2)
                     local_CHs.insert(0, new_hull)
-            else:
-                shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
-                    local_CHs[0], shortest_path[-1], link1[0], 
-                    # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
-                )[1:])
-                local_CHs.pop(0)
-                shortest_path.append(link1[1])
+                    continue
+            shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
+                local_CHs[0], shortest_path[-1], link1[0], 
+            )[1:])
+            local_CHs.pop(0)
+            shortest_path.append(link1[1])
                 
         if len(local_CHs) == 2:
             link1 = ConvexHull.find_tangent(local_CHs[0], local_CHs[1])
             shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
                 local_CHs[0], shortest_path[-1], link1[0], 
-                # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
             )[1:])
             shortest_path.append(link1[1])
             shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
                 local_CHs[1], shortest_path[-1], local_CHs[1][-1], 
-                # clockwise=not is_left_on(local_CHs[1][0], local_CHs[1][1], local_CHs[1][2])
             )[1:])
         else:           
             shortest_path.extend(ConvexHull.extract_convex_rope_from_hull(
                                     local_CHs[0], shortest_path[-1], local_CHs[0][-1], 
-                                    # clockwise=not is_left_on(local_CHs[0][0], local_CHs[0][1], local_CHs[0][2])
                                 )[1:])
         return shortest_path
         
