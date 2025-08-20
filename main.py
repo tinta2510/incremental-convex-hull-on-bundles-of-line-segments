@@ -74,10 +74,10 @@ if __name__=="__main__":
     
     # Create separate instances of the polygon
     polygon = SimplePolygonFromSequenceOfBundle(sequence)
-    shortest_path = polygon.find_shortest_path(direction=False)
+    shortest_path = polygon.find_shortest_path()
     
     polygon2 = SimplePolygon(polyline_P=polygon.polyline_P, polyline_Q=polygon.polyline_Q)
-    shortest_path_2 = polygon2.find_shortest_path(direction=False)
+    shortest_path_2 = polygon2.find_shortest_path(direction=polygon.start_direction)
     
     # times2 = []
     # for _ in range(1000):

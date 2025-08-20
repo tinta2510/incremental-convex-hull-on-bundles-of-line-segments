@@ -4,7 +4,7 @@ from utils import (
     calculate_distance, is_larger_angle, is_equal_angle, is_left, is_left_on, 
     calculate_angle, Point, do_intersect
 )
-from intervaltree import IntervalTree
+from typing import Optional
                    
 def write_points_to_file(points: list[Point], filename: str) -> None:
     """
@@ -324,6 +324,8 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                 for outer_pt in sequence.outer_endpoints[i]:
                     polyline_Q.append(outer_pt)
                     partitions_of_Q.append(label)
+            if i == 1:
+                self.start_direction = False if vertex_on_P else True
         # Add the last vertex
         polyline_P.append(sequence.skeleton[-1])
         polyline_Q.append(sequence.skeleton[-1])
@@ -334,7 +336,9 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
         self.partitions_of_P = partitions_of_P
         self.partitions_of_Q = partitions_of_Q
     
-    def find_shortest_path(self, direction: bool =  True):
+    def find_shortest_path(self, direction: Optional[bool] =  None):
+        if direction is None:
+            direction = self.start_direction
         count = 0
         print("Improved version")
         shortest_path = []
@@ -415,4 +419,3 @@ class SimplePolygonFromSequenceOfBundle(SimplePolygon):
                     print("Count improved version: ", count)
                     return shortest_path
             self.convex_hulls.append(tangent_polyline) # For illustration only
-            
