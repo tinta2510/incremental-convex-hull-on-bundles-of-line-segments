@@ -240,7 +240,7 @@ class SimplePolygon:
                 # Find the tangent points
                 left_tp_idx = self.find_left_tangent_point(tangent_polyline, added_pt, direction)
                 
-                # # Check intersection
+                # Check intersection
                 count += 1
                 Ystar = []
                 intersection = False
