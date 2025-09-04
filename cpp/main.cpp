@@ -104,7 +104,7 @@ void write_shortest_path_to_file(const std::vector<Point>& shortest_path, const 
 }
 
 int main() {
-    SequenceOfBundles sequence = load_sequence_from_file("D:/MARS_Workspace/Convex-Hull/Incremental-Convex-Hull-etc_Implementation/incremental-convex-hull-on-bundles-of-line-segments/input/input_1.txt", false);
+    SequenceOfBundles sequence = load_sequence_from_file("D:/MARS_Workspace/Convex-Hull/Incremental-Convex-Hull-etc_Implementation/incremental-convex-hull-on-bundles-of-line-segments/input/input_3.txt", false);
     SimplePolygonFromSequenceOfBundle polygon(sequence);
     std::vector<Point> shortest_path = polygon.findShortestPath(true);
     write_shortest_path_to_file(shortest_path, "shortest_path_log.txt");
