@@ -76,38 +76,12 @@ if __name__=="__main__":
     polygon = SimplePolygonFromSequenceOfBundle(sequence)
     shortest_path = polygon.find_shortest_path()
     
-    polygon2 = SimplePolygon(polyline_P=polygon.polyline_P, polyline_Q=polygon.polyline_Q)
-    shortest_path_2 = polygon2.find_shortest_path(direction=polygon.start_direction)
-    
-    # times2 = []
-    # for _ in range(1000):
-    #     polygon2 = SimplePolygonFromSequenceOfBundle(sequence)
-    #     starting_time_2 = time.perf_counter()
-    #     SimplePolygon.find_shortest_path(polygon2, direction=False)
-    #     ending_time_2 = time.perf_counter()
-    #     times2.append(ending_time_2  - starting_time_2)
-    
-    # times = []
-    # for _ in range(1000):
-    #     polygon = SimplePolygonFromSequenceOfBundle(sequence)
-    #     starting_time = time.perf_counter()
-    #     polygon.find_shortest_path(direction=False)
-    #     ending_time = time.perf_counter()
-    #     times.append(ending_time - starting_time)
-        
-    # print("Time taken for 1000 iterations of find_shortest_path: ", statistics.mean(times), "Stddev: ", statistics.stdev(times))
-    # print("Time taken for 1000 iterations of find_shortest_path_2: ", statistics.mean(times2), "Stddev: ", statistics.stdev(times2))    
-
     visalize_sequence(plt, sequence)
     visualize_shortest_path(plt, shortest_path)
-    # visualize_simple_polygon(plt, polygon)
     
     # Visualize the convex hull 
     draw_convex_hull(plt, polygon.convex_hulls)
-    
-    print("Shortest path length - improved version: ", len(shortest_path))
-    print("Shortest path length - original version: ", len(shortest_path_2))
-    
+        
     plt.xticks([])  # Remove x-axis numbers
     plt.yticks([])  # Remove y-axis numbers
     plt.grid(False)

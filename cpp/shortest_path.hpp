@@ -1,7 +1,7 @@
 #ifndef SHORT_PATH_HPP
 #define SHORT_PATH_HPP
 
-#include <utils.hpp>
+#include "utils.hpp"
 
 #include <vector>
 #include <optional>
@@ -24,6 +24,7 @@ struct SimplePolygon {
     std::vector<Point> polyline_Q;
     std::vector<std::vector<Point>> convex_hulls;
 
+    SimplePolygon();
     SimplePolygon(const std::vector<Point>&, const std::vector<Point>&);
     SimplePolygon(std::vector<Point>&&, std::vector<Point>&&);
 
@@ -48,6 +49,18 @@ protected:
     
     size_t findLeftTangentPoint(const std::vector<Point>& tangent_polyline,
                                const Point& added_pt, bool direction) const;
-}
+};
 
+struct SimplePolygonFromSequenceOfBundle : public SimplePolygon {
+    SequenceOfBundles sequence;
+    std::vector<int> partitions_of_P;
+    std::vector<int> partitions_of_Q;
+    bool start_direction;
+    // Constructor
+    SimplePolygonFromSequenceOfBundle(const SequenceOfBundles& sequence);
+    SimplePolygonFromSequenceOfBundle(SequenceOfBundles&& sequence);
+    
+    // Override find_shortest_path method
+    std::vector<Point> findShortestPath(std::optional<bool> direction = std::nullopt);
+};
 #endif // SHORT_PATH_HPP

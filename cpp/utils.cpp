@@ -1,4 +1,4 @@
-#include<utils.hpp>
+#include"utils.hpp"
 
 #include <cmath>
 #include <stdexcept>   // for std::invalid_argument
@@ -43,7 +43,7 @@ float calculateDistance(const Point& p1, const Point& p2) {
     return std::sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
 }
 
-bool isLeft(const Point& p0, const Point& p1, const Point& p2, bool direction = true) {
+bool isLeft(const Point& p0, const Point& p1, const Point& p2, bool direction) {
     float crossProduct = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
     if (direction) {
         return crossProduct > EPSILON; // Left turn

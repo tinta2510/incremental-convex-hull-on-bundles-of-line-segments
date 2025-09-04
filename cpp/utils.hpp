@@ -20,9 +20,9 @@ struct Point {
 
 float calculateDistance(const Point&, const Point&);
 
-bool isLeft(const Point&, const Point&, const Point&, bool);
+bool isLeft(const Point&, const Point&, const Point&, bool direction = true);
 
-bool isLeftOn(const Point& p0, const Point& p1, const Point& p, bool direction);
+bool isLeftOn(const Point& p0, const Point& p1, const Point& p, bool direction = true);
 
 bool isEqual(float, float);
 
